@@ -1,0 +1,9 @@
+node_modules
+.next
+data
+docs
+*.pdf
+.git
+.claude
+.env
+.env.*

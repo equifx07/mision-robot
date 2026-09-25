@@ -1,0 +1,18 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+.env
+.env.local
+.env.*.local
+data/*.db
+data/*.db-*
+.DS_Store
+Thumbs.db
+
+# referencias locales y config del asistente
+*.pdf
+.claude/
