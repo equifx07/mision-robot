@@ -37,14 +37,14 @@ type Props = {
   showCoords?: boolean;
 };
 
-function OptionContent({ item, opt }: { item: ItemA; opt: OptionA }) {
+function OptionContent({ item, opt, compact }: { item: ItemA; opt: OptionA; compact?: boolean }) {
   switch (opt.kind) {
     case "program": {
       const highlight = item.task === "D" && item.given ? diffRows(item.given, effectiveProgram(item, opt)) : undefined;
-      return <ProgramView program={opt.program} highlight={highlight} />;
+      return <ProgramView program={opt.program} highlight={highlight} compact={compact} />;
     }
     case "piece":
-      return <PieceView blocks={opt.blocks} />;
+      return <PieceView blocks={opt.blocks} compact={compact} />;
     case "cond":
       return (
         <div className="flex h-8 items-center gap-1.5 rounded-lg bg-emerald-600 px-2.5 text-sm font-semibold text-white">
@@ -52,7 +52,7 @@ function OptionContent({ item, opt }: { item: ItemA; opt: OptionA }) {
         </div>
       );
     case "def":
-      return <ProgramView program={{ defs: [{ name: opt.name, body: opt.body }], main: [] }} />;
+      return <ProgramView program={{ defs: [{ name: opt.name, body: opt.body }], main: [] }} compact={compact} />;
   }
 }
 
@@ -94,21 +94,22 @@ export function ItemView({ item, index, total, selected, onSelect, order, review
   if (isA) {
     const results = review ? item.options.map((o) => simulateOption(item, o)) : null;
     const visited = review ? simulateOption(item, item.options[item.correct]).steps : undefined;
+    const compact = !review; // en la prueba, bloques más chicos para que las 4 opciones entren en una Chromebook
     return (
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-3">
         {header}
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
-          <div className="flex shrink-0 flex-col gap-4 lg:w-[440px]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className={`flex shrink-0 flex-col gap-3 ${review ? "lg:w-[440px]" : "lg:w-[400px]"}`}>
             <p className="text-lg font-bold leading-snug text-slate-800">{item.prompt}</p>
-            <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
+            <div className="rounded-2xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200">
               <MapView map={item.map} visited={visited} showCoords={showCoords} />
             </div>
             {item.given && (
-              <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className="rounded-2xl bg-white p-2.5 shadow-sm ring-1 ring-slate-200">
+                <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {item.givenNote ?? (item.task === "C" ? "Programa a completar" : "Programa")}
                 </div>
-                <ProgramView program={item.given} />
+                <ProgramView program={item.given} compact={compact} />
               </div>
             )}
           </div>
@@ -122,18 +123,18 @@ export function ItemView({ item, index, total, selected, onSelect, order, review
                   type="button"
                   onClick={onSelect ? () => onSelect(optIdx) : undefined}
                   aria-pressed={isSel}
-                  className={`flex flex-col items-start rounded-2xl border-2 bg-white p-3 text-left shadow-sm transition ${
+                  className={`flex flex-col items-start rounded-2xl border-2 bg-white p-2.5 text-left shadow-sm transition ${
                     isSel ? "border-blue-600 bg-blue-50 ring-2 ring-blue-200" : "border-slate-200 hover:border-blue-300"
                   } ${review && optIdx === item.correct ? "border-green-500" : ""}`}
                 >
                   <span
-                    className={`mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-black ${
+                    className={`mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-black ${
                       isSel ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
                     }`}
                   >
                     {LETTERS[pos]}
                   </span>
-                  <OptionContent item={item} opt={opt} />
+                  <OptionContent item={item} opt={opt} compact={compact} />
                   {results && <ReviewBadge r={results[optIdx]} />}
                 </button>
               );

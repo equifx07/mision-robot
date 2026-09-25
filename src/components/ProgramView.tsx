@@ -169,11 +169,23 @@ function Blocks({ blocks, start, ctx }: { blocks: Block[]; start: number; ctx: C
   const leafSize = ctx.compact ? "h-7 w-9" : "h-8 w-10";
   let idx = start;
   const out: React.ReactNode[] = [];
+  // Las flechas consecutivas se agrupan en una fila que se corta sola (se leen de izquierda a derecha).
+  let run: React.ReactNode[] = [];
+  const flush = (key: string) => {
+    if (run.length === 0) return;
+    out.push(
+      <div key={key} className="flex max-w-[15rem] flex-wrap gap-1">
+        {run}
+      </div>,
+    );
+    run = [];
+  };
   blocks.forEach((b, k) => {
     const here = idx;
+    if (b.t !== "move") flush(`run-${k}`);
     switch (b.t) {
       case "move":
-        out.push(
+        run.push(
           <div key={k} className={rowCls(ctx, here, `${LEAF} ${leafSize} bg-sky-500`)}>
             <Arrow dir={b.dir} big={!ctx.compact} />
           </div>,
@@ -267,6 +279,7 @@ function Blocks({ blocks, start, ctx }: { blocks: Block[]; start: number; ctx: C
         break;
     }
   });
+  flush("run-end");
   return <>{out}</>;
 }
 
