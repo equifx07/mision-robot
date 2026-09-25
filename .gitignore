@@ -16,3 +16,4 @@ Thumbs.db
 # referencias locales y config del asistente
 *.pdf
 .claude/
+.env.coolify
