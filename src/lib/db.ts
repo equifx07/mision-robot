@@ -77,10 +77,20 @@ declare global {
   var __misionRobotDb: Database | undefined;
 }
 
+/** Carpeta de datos: DATA_DIR (sin comillas ni espacios sobrantes) o ./data. */
+export function dataDir(): string {
+  const raw = (process.env.DATA_DIR ?? "").trim().replace(/^['"]+|['"]+$/g, "");
+  return raw ? path.resolve(raw) : path.join(process.cwd(), "data");
+}
+
+export function dbFile(): string {
+  return path.join(dataDir(), "mision-robot.db");
+}
+
 function open(): Database {
-  const dir = process.env.DATA_DIR || path.join(process.cwd(), "data");
+  const dir = dataDir();
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, "mision-robot.db");
+  const file = dbFile();
   // Se carga por getBuiltinModule para que el bundler no intente resolver el módulo.
   const sqlite = process.getBuiltinModule("node:sqlite") as { DatabaseSync: new (p: string) => Database };
   const db = new sqlite.DatabaseSync(file);
