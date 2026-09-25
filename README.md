@@ -30,7 +30,11 @@ npx tsx scripts/seed-demo.ts --clean # las borra
 
 La base de datos es un archivo SQLite en `data/mision-robot.db` (se crea solo).
 
-## Despliegue en Coolify
+## Producción
+
+La app está desplegada en **https://pensamientocomputacional.becode.com.ar** (Coolify, proyecto "Pensamiento Computacional", aplicación `mision-robot`, volumen persistente en `/app/data`). Cada `git push` a `main` dispara un deploy automático mediante el webhook de GitHub; también se puede lanzar desde Coolify con "Deploy". La contraseña del panel se cambia en Coolify, en las variables de entorno de la aplicación (`ADMIN_PASSWORD`), y después "Restart".
+
+## Despliegue en Coolify desde cero
 
 1. En Coolify: **New resource → Application → GitHub** (o "Public/Private repository") y elegí este repositorio, rama `main`.
 2. **Build pack: Dockerfile** (el repo incluye el `Dockerfile`). Puerto expuesto: `3000`.
