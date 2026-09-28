@@ -209,7 +209,7 @@ export function StartForm() {
           </div>
         </fieldset>
         {error && <p className="rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">{error}</p>}
-        <button type="submit" disabled={sending || !schools || schools.length === 0} className="rounded-2xl bg-blue-600 px-5 py-3 text-lg font-black text-white shadow hover:bg-blue-700 disabled:opacity-50">
+        <button type="submit" disabled={sending || !schools || schools.length === 0} className="rounded-2xl bg-[#176CE0] shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] px-5 py-3 text-lg font-semibold text-white disabled:opacity-50">
           {sending ? "Empezando…" : "Empezar"}
         </button>
       </form>

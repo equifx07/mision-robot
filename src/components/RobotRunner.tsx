@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapView } from "@/components/MapView";
 import { ProgramView } from "@/components/ProgramView";
+import type { RobotState } from "@/lib/art";
 import type { GameMap, Program } from "@/lib/model";
-import { edgeKey, simulate, type Seg } from "@/lib/sim";
+import { edgeKey, simulate, targetTrail, type Seg } from "@/lib/sim";
 
 type Props = {
   map: GameMap;
@@ -13,13 +14,22 @@ type Props = {
   outcome?: string;
   /** Empieza a animar solo al apretar ▶ (por defecto). */
   stepMs?: number;
+  /** Arranca solo al aparecer (prácticas: "Probar"). */
+  autoPlay?: boolean;
   onFinished?: () => void;
 };
 
-export function RobotRunner({ map, program, outcome, stepMs = 550, onFinished }: Props) {
+const CRASH_TEXT = {
+  wall: "¡Ups! Ahí no hay puente. La misión falla.",
+  rock: "¡Ups! Chocó con una roca. La misión falla.",
+  edge: "¡Ups! Se salió del mapa. La misión falla.",
+} as const;
+
+export function RobotRunner({ map, program, outcome, stepMs = 550, autoPlay, onFinished }: Props) {
   const result = useMemo(() => simulate(map, program), [map, program]);
-  const [step, setStep] = useState<number>(-1); // -1: sin empezar; k: se hicieron k movimientos
-  const [running, setRunning] = useState(false);
+  const ghost = useMemo(() => (map.kind === "canvas" ? targetTrail(map) : undefined), [map]);
+  const [step, setStep] = useState<number>(autoPlay ? 0 : -1); // -1: sin empezar; k: se hicieron k movimientos
+  const [running, setRunning] = useState(!!autoPlay);
   const timer = useRef<number | null>(null);
   const totalMoves = result.steps.length - 1;
   const crashed = result.status === "crash";
@@ -59,6 +69,10 @@ export function RobotRunner({ map, program, outcome, stepMs = 550, onFinished }:
   const currentRow = step >= 1 && step - 1 < result.trace.length ? result.trace[step - 1] : undefined;
   const highlight = currentRow !== undefined && currentRow >= 0 && (running || (finished && crashed)) ? new Set([currentRow]) : undefined;
 
+  let robotState: RobotState = "normal";
+  if (map.kind === "canvas") robotState = finished ? (result.ok ? "happy" : "normal") : step >= 0 ? "paint" : "normal";
+  else if (finished) robotState = crashed ? "crash" : result.ok ? "happy" : "normal";
+
   let message: string | null = null;
   let good = false;
   if (finished) {
@@ -68,7 +82,7 @@ export function RobotRunner({ map, program, outcome, stepMs = 550, onFinished }:
     } else if (result.ok) {
       message = map.kind === "maze" ? "¡Llegó a la base! Misión cumplida." : "¡Dibujó la figura!";
       good = true;
-    } else if (result.status === "crash") message = `Se chocó: ${result.detail}. La misión falla.`;
+    } else if (result.status === "crash") message = result.crashAt ? CRASH_TEXT[result.crashAt.reason] : "¡Ups! Se chocó. La misión falla.";
     else if (result.status === "off_base") message = "Terminó el programa fuera de la base. La misión falla.";
     else if (result.status === "wrong_figure") message = "Dibujó otra figura.";
     else message = result.detail;
@@ -76,31 +90,24 @@ export function RobotRunner({ map, program, outcome, stepMs = 550, onFinished }:
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
-        <MapView map={map} robotAt={robotAt} visited={map.kind === "maze" ? visited : undefined} trail={map.kind === "canvas" ? (step < 0 ? new Set() : trail) : undefined} />
-        {finished && crashed && (
-          <div className="mt-1 text-center text-2xl" aria-hidden>
-            💥
-          </div>
-        )}
+      <div className="rounded-2xl bg-white p-2.5 shadow-sm ring-2 ring-[#EDE3CC]">
+        <MapView map={map} robotAt={map.kind === "canvas" && step < 0 ? undefined : robotAt} robotState={robotState} visited={map.kind === "maze" ? visited : undefined} trail={map.kind === "canvas" ? (step < 0 ? new Set() : trail) : undefined} ghost={ghost} fit={{ maxScale: map.kind === "canvas" ? 1.8 : 1.4, reserve: 330 }} />
       </div>
       <div className="flex flex-col gap-3">
-        <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
-          <ProgramView program={program} highlight={highlight} />
+        <div className="rounded-2xl bg-white p-3 shadow-sm ring-2 ring-[#EDE3CC]">
+          <ProgramView program={program} running={highlight} />
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={start}
             disabled={running}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-base font-bold text-white shadow hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-xl bg-[#176CE0] px-4 py-2 text-base font-semibold text-white shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] disabled:opacity-50"
           >
             {step < 0 ? "▶ Ejecutar" : "↺ Ver de nuevo"}
           </button>
         </div>
-        {message && (
-          <div className={`rounded-xl px-3 py-2 text-sm font-semibold ${good ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{message}</div>
-        )}
+        {message && <div className={`rounded-xl px-3 py-2 text-sm font-semibold ${good ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{message}</div>}
       </div>
     </div>
   );

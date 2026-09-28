@@ -55,7 +55,9 @@ export type OptionA =
   | { kind: "program"; program: Program } // secuenciar / depurar: programa completo
   | { kind: "piece"; blocks: Block[] } // completar: bloques que llenan el hueco
   | { kind: "cond"; cond: Cond } // completar: condición que llena el hueco
-  | { kind: "def"; name: string; body: Block[] }; // funciones: definición que falta
+  | { kind: "def"; name: string; body: Block[] } // funciones: definición que falta
+  /** Arreglar: programa arreglado; `from` y `to` son el pedacito que cambia (solo para mostrar). */
+  | { kind: "fix"; program: Program; from: Block[]; to: Block[] };
 
 export type ConceptA =
   | "secuencias"
@@ -98,9 +100,14 @@ export type ItemB = {
   id: string;
   part: "B";
   practice: PracticeB;
+  /** Datos y reglas de la situación, en frases cortas (se muestran como lista). */
+  facts?: string[];
+  /** La pregunta. */
   prompt: string;
   /** Clave de la figura SVG que acompaña al ítem (ver components/b). */
   figure: string;
+  /** Si está, las opciones se dibujan (ver OptionFigure); el texto de options queda para exportar y revisar. */
+  optionFigure?: string;
   options: string[];
   correct: number;
   notes?: string;
@@ -158,6 +165,8 @@ export const optProg = (main: Block[], defs?: FuncDef[]): OptionA => ({
 export const optPiece = (blocks: Block[]): OptionA => ({ kind: "piece", blocks });
 export const optCond = (cond: Cond): OptionA => ({ kind: "cond", cond });
 export const optDef = (name: string, body: Block[]): OptionA => ({ kind: "def", name, body });
+/** Opción de arreglar: el programa arreglado y el cambio que se muestra ("cambiar `from` por `to`"). */
+export const optFix = (main: Block[], from: Block[], to: Block[]): OptionA => ({ kind: "fix", program: prog(main), from, to });
 export const rock = (dir: Dir): Cond => ({ kind: "rock", dir });
 export const path = (dir: Dir): Cond => ({ kind: "path", dir });
 export const c = (col: number, row: number): Cell => [col, row];

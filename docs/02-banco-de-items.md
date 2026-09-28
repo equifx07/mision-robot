@@ -35,9 +35,39 @@ Notación en este documento: `{ … }` encierra el cuerpo del bloque; en la app 
 
 Notación de mapas: `R` robot, `B` base, `X` roca, `*` gema, `·` casilla vacía, `─` y `│` caminos (donde no hay línea hay pared). En lienzo: `S` inicio y `━ ┃` rastro pintado. Coordenadas (columna, fila) con (1,1) arriba a la izquierda.
 
-Tipos de tarea: **S** secuenciar (elegir el programa completo), **C** completar (falta una pieza), **D** depurar (programa con error; se eligen entre 4 programas corregidos, con el cambio resaltado).
+Tipos de tarea: **S** secuenciar (elegir el programa completo), **C** completar (falta una pieza), **D** depurar (programa con error; se elige el cambio que lo arregla).
 
 ---
+
+## Versión 0.2 (2026-09-25): rediseño para que las misiones se entiendan a simple vista
+
+Revisión ítem por ítem pensando en chicos de 11 años con y sin experiencia previa. La fuente de verdad del contenido es `src/lib/items-a.ts` / `items-b.ts`; lo que sigue resume qué cambió respecto de las secciones de abajo.
+
+**Formato de pantalla (todas las misiones de la Parte A)**
+- Etiqueta de formato junto a la consigna: *Elegir* (S), *Completar* (C), *Arreglar* (D), *Comparar* (E). Remite a la práctica de ese formato.
+- Consignas cortas y siempre iguales por formato: "¿Qué programa lleva al robot hasta la base?", "¿Qué pieza va en el hueco…?", "El robot se choca. ¿Qué cambio arregla el programa?".
+- El mapa se agranda hasta ocupar el espacio libre; la cantidad de columnas de opciones se elige según su tamaño para que todo entre en 1366 × 657 sin desplazarse.
+- **Completar:** el hueco es amarillo. Al tocar una opción, la pieza aparece dentro del programa y brilla ("Así queda con tu pieza"). No hay retroalimentación sobre si está bien.
+- **Arreglar:** las opciones ya no son 4 programas enteros sino 4 cambios "[esto] → [esto]". Al tocar uno, el programa muestra el cambio aplicado. En el mapa se ve el recorrido del programa con error en rojo y una cruz donde se choca (en lienzo: "Tiene que dibujar" / "Pero dibuja"). Es el primer paso real de depurar: ver la falla y buscar la causa.
+- **Lienzo (pintar):** hoja cuadriculada, punto verde de inicio, el robot espera al costado sin tapar la figura y cada esquina de la figura tiene un puntito para contar pasos. Leyenda: "empieza en el punto verde · cada flecha pinta un lado de un cuadradito".
+- Bloque `repetir hasta llegar a la base` → `repetir hasta la base` (más corto; mismo significado).
+
+**Ítems con contenido nuevo**
+- A2.3: opciones como cambios; se agrega el distractor "repetir 3 → repetir 4" (tienta por el puente (5,1)-(5,2), que no sigue).
+- A3.3, A5.3: mismas ideas, opciones como cambios; en A5.3 los distractores son cambiar la condición (roca ↑, camino →) o bajar de más (↓↓).
+- A4.3: lienzo 7 × 7 para que el programa con error dibuje su figura completa; distractores: "repetir 3 → 2" (externo), quitar el repetir interno, y "↑ → repetir 2 ↑" (escalones de 2 × 2).
+- A6.3: nuevo programa con error `repetir hasta la base { si hay camino ↓ { → } si no { ↓ } }`: la condición mira para el lado equivocado. Se arregla con un solo cambio (camino ↓ → camino →); hay que seguir el si / si no dos veces para encontrarlo.
+- A7.1: la definición de Paso tiene un hueco (mismo formato que los demás de completar); las opciones son las piezas.
+
+**Tutorial y prácticas**
+- Se quitan las gemas de la explicación (ningún ítem las usa).
+- "¡Probá vos!" al final de la explicación: una misión chiquita con botón ▶ Probar.
+- Prácticas de formato, justo antes del primer ítem de cada uno, con botón ▶ Probar y ejemplo resuelto: pintar (antes de A1.2), completar (antes de A2.2) y arreglar (antes de A2.3). Siguen el principio del BCTt de mostrar un ejemplo por tipo de ítem; en la prueba no hay botón Probar.
+
+**Parte B**
+- Cada ítem separa los datos (frases cortas en lista) de la pregunta.
+- Figuras más grandes y con la regla dibujada: B1 muestra que pintar va "después" de las otras dos tareas y aclara que cada tarea la hace un solo robot; B3 marca los grupos (3A, 4B, 2C); B4 muestra el ejemplo 4 + 1 = 5; B6 dibuja la regla del inspector con dos ejemplos (cambian / quedan igual).
+- Opciones dibujadas en vez de texto: B2 (bloque repetir con cuentas), B4 (tarjetas), B6 (fila de números) y B8 (llave, semáforo y gema, tachados cuando no están).
 
 ## Parte A — "Programá al robot" (20 ítems)
 

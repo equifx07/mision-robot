@@ -276,7 +276,7 @@ export function simulate(map: GameMap, program: Program): SimResult {
     }
   } else if (status === "crash" && w.crashAt) {
     const r = w.crashAt.reason;
-    const why = r === "edge" ? "se cae del mapa" : r === "rock" ? "choca con una roca" : "choca con una pared";
+    const why = r === "edge" ? "se cae del mapa" : r === "rock" ? "choca con una roca" : "no hay puente";
     detail = `${why} al ir ${DIRWORD[w.crashAt.dir]} desde (${w.crashAt.from[0]},${w.crashAt.from[1]}) tras ${w.moves} movimientos`;
   } else if (status === "timeout") detail = "nunca termina";
   else if (status === "incomplete") detail = "programa incompleto";
@@ -299,7 +299,7 @@ const DIRWORD: Record<Dir, string> = { U: "↑", D: "↓", L: "←", R: "→" };
 
 /** Reemplaza el primer hueco (de bloques o de condición) del programa. */
 export function fillHole(program: Program, opt: OptionA): Program {
-  if (opt.kind === "program") return opt.program;
+  if (opt.kind === "program" || opt.kind === "fix") return opt.program;
   if (opt.kind === "def") {
     const defs = [...(program.defs ?? []).filter((d) => d.name !== opt.name), { name: opt.name, body: opt.body }];
     return { defs, main: program.main };
@@ -336,7 +336,7 @@ export function fillHole(program: Program, opt: OptionA): Program {
 
 /** Programa efectivo que resulta de elegir una opción en un ítem. */
 export function effectiveProgram(item: ItemA, opt: OptionA): Program {
-  if (opt.kind === "program") {
+  if (opt.kind === "program" || opt.kind === "fix") {
     // Si el ítem tiene definiciones dadas (p. ej. A7.3), las opciones las heredan salvo que traigan las suyas.
     if (!opt.program.defs && item.given?.defs) return { defs: item.given.defs, main: opt.program.main };
     return opt.program;

@@ -32,7 +32,7 @@ export function PruebaClient() {
     return (
       <div className="mx-auto max-w-md p-10 text-center">
         <p className="text-slate-700">No hay ninguna prueba empezada en este dispositivo.</p>
-        <a href="/" className="mt-4 inline-block rounded-xl bg-blue-600 px-4 py-2 font-bold text-white">
+        <a href="/" className="mt-4 inline-block rounded-xl bg-[#176CE0] shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] px-4 py-2 font-semibold text-white">
           Ir al inicio
         </a>
       </div>

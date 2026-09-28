@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ItemView } from "@/components/ItemView";
 import { Robot } from "@/components/MapView";
-import { RobotRunner } from "@/components/RobotRunner";
+import { IntroStepContent, PracticeContent } from "@/components/Tutorial";
 import { ATTEMPT_KEY } from "@/components/StartForm";
 import { ITEMS } from "@/lib/items";
-import { INTRO, LEGEND, PRACTICES } from "@/lib/tutorial";
+import { INTRO, PRACTICES } from "@/lib/tutorial";
 
 const TIME_LIMIT_MS = 45 * 60 * 1000;
 
@@ -168,8 +168,8 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-4 py-2">
         <div className="flex items-center gap-2 font-black text-slate-800">
-          <svg width="30" height="30" viewBox="-16 -28 32 52" aria-hidden>
-            <Robot x={0} y={0} scale={0.9} />
+          <svg width="34" height="34" viewBox="-26 -30 52 56" aria-hidden>
+            <Robot x={0} y={0} scale={0.95} />
           </svg>
           Misión Robot
         </div>
@@ -179,7 +179,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
               Misión {phase.itemIndex + 1} de {total}
             </span>
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-              <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${(phase.itemIndex / total) * 100}%` }} />
+              <div className="h-full rounded-full bg-[#176CE0] transition-all" style={{ width: `${(phase.itemIndex / total) * 100}%` }} />
             </div>
           </div>
         )}
@@ -199,7 +199,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     body = (
       <div className="mx-auto max-w-md p-10 text-center">
         <p className="text-red-700">{phase.message}</p>
-        <a href="/" className="mt-4 inline-block rounded-xl bg-blue-600 px-4 py-2 font-bold text-white">
+        <a href="/" className="mt-4 inline-block rounded-xl bg-[#176CE0] shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] px-4 py-2 font-semibold text-white">
           Ir al inicio
         </a>
       </div>
@@ -208,27 +208,11 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     const step = INTRO[phase.step];
     const last = phase.step === INTRO.length - 1;
     body = (
-      <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
         <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">
           Explicación · {phase.step + 1} de {INTRO.length}
         </div>
-        <h2 className="text-2xl font-black text-slate-800">{step.title}</h2>
-        <ul className="list-disc space-y-1 pl-6 text-lg text-slate-700">
-          {step.lines.map((l, i) => (
-            <li key={i}>{l}</li>
-          ))}
-        </ul>
-        {step.demo && <RobotRunner key={phase.step} map={step.demo.map} program={step.demo.program} outcome={step.demo.outcome} />}
-        {step.legend && (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {LEGEND.map((l) => (
-              <div key={l.title} className="flex items-center gap-3 rounded-xl bg-white p-2 ring-1 ring-slate-200">
-                <span className={`rounded-lg px-2.5 py-1 text-sm font-semibold text-white ${l.color}`}>{l.title}</span>
-                <span className="text-sm text-slate-700">{l.text}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <IntroStepContent step={step} stepKey={String(phase.step)} />
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -241,7 +225,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
           <button
             type="button"
             onClick={() => (last ? goToItem(0) : setPhase({ kind: "intro", step: phase.step + 1 }))}
-            className="rounded-2xl bg-blue-600 px-6 py-3 text-lg font-black text-white shadow hover:bg-blue-700"
+            className="rounded-2xl bg-[#176CE0] shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] px-6 py-3 text-lg font-semibold text-white"
           >
             {last ? "Empezar" : "Siguiente →"}
           </button>
@@ -252,19 +236,10 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     const item = ITEMS[phase.itemIndex];
     const p = PRACTICES[item.id];
     body = (
-      <div className="mx-auto flex max-w-4xl flex-col gap-5 p-4 sm:p-6">
-        <div className="text-sm font-semibold uppercase tracking-wide text-amber-600">Práctica · no cuenta para el resultado</div>
-        <h2 className="text-2xl font-black text-slate-800">{p.title}</h2>
-        <ul className="list-disc space-y-1 pl-6 text-lg text-slate-700">
-          {p.lines.map((l, i) => (
-            <li key={i}>{l}</li>
-          ))}
-        </ul>
-        {p.demos.map((d, i) => (
-          <RobotRunner key={`${item.id}-${i}`} map={d.map} program={d.program} outcome={d.outcome} />
-        ))}
+      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
+        <PracticeContent practice={p} practiceKey={item.id} />
         <div className="flex justify-end">
-          <button type="button" onClick={() => goToItem(phase.itemIndex, true)} className="rounded-2xl bg-blue-600 px-6 py-3 text-lg font-black text-white shadow hover:bg-blue-700">
+          <button type="button" onClick={() => goToItem(phase.itemIndex, true)} className="rounded-2xl bg-[#176CE0] shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] px-6 py-3 text-lg font-semibold text-white">
             Ir a la misión {phase.itemIndex + 1} →
           </button>
         </div>
@@ -273,7 +248,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
   } else if (phase.kind === "item") {
     const item = ITEMS[phase.itemIndex];
     body = (
-      <div className="mx-auto max-w-[1320px] p-4 pb-24 sm:p-6 sm:pb-24">
+      <div className="mx-auto max-w-[1320px] px-4 pb-24 pt-4">
         <ItemView
           key={item.id}
           item={item}
@@ -284,13 +259,13 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
           order={attempt?.optionOrders[item.id]}
         />
         <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 backdrop-blur">
-          <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-4 py-3">
+          <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-4 py-2">
             <span className="text-sm text-slate-600">{saveError ? <span className="font-semibold text-red-700">{saveError}</span> : selected === null ? "Elegí una opción." : "¿Lista tu respuesta?"}</span>
             <button
               type="button"
               onClick={confirm}
               disabled={selected === null || saving}
-              className="rounded-2xl bg-green-600 px-6 py-3 text-lg font-black text-white shadow hover:bg-green-700 disabled:opacity-40"
+              className="rounded-2xl bg-[#0F8743] px-6 py-2.5 text-lg font-semibold text-white shadow-[inset_0_-4px_0_#0A6231] hover:bg-[#0D7A3C] disabled:opacity-40"
             >
               {saving ? "Guardando…" : "Confirmar"}
             </button>
@@ -303,8 +278,8 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     const timedOut = phase.status === "timed_out";
     body = (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 p-10 text-center">
-        <svg width="90" height="90" viewBox="-40 -45 80 80" aria-hidden>
-          <Robot x={0} y={0} scale={1.5} />
+        <svg width="110" height="110" viewBox="-46 -48 92 92" aria-hidden>
+          <Robot x={0} y={0} scale={1.55} state={phase.status === "timed_out" ? "normal" : "happy"} />
         </svg>
         <h2 className="text-3xl font-black text-slate-800">{timedOut ? "Se terminó el tiempo" : "¡Misión cumplida!"}</h2>
         <p className="text-lg text-slate-700">

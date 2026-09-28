@@ -5,8 +5,8 @@ export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-6 px-4 py-8">
       <div className="flex items-center gap-4">
-        <svg width="64" height="64" viewBox="-32 -34 64 64" aria-hidden>
-          <Robot x={0} y={0} scale={1.1} />
+        <svg width="76" height="76" viewBox="-34 -36 68 68" aria-hidden>
+          <Robot x={0} y={0} scale={1.15} />
         </svg>
         <div>
           <h1 className="text-4xl font-black text-slate-800">Misión Robot</h1>

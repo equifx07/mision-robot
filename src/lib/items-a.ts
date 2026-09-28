@@ -8,7 +8,7 @@ import {
   ifPath,
   ifRock,
   optCond,
-  optDef,
+  optFix,
   optPiece,
   optProg,
   path,
@@ -21,8 +21,15 @@ import {
   type ItemA,
 } from "./model";
 
-const PROMPT_MAZE = "Llevá al robot hasta la base.";
-const PROMPT_CANVAS = "El robot pinta mientras se mueve. ¿Qué programa dibuja esta figura?";
+// Consignas cortas y con la misma forma para cada tipo de misión. La etiqueta de la misión
+// ("Completar", "Arreglar", "Comparar") remite a la práctica de ese formato (ver tutorial.ts).
+const PROMPT_MAZE = "¿Qué programa lleva al robot hasta la base?";
+const PROMPT_CANVAS = "¿Qué programa dibuja esta figura?";
+const HOLE_MAZE = "¿Qué pieza va en el hueco para que el robot llegue a la base?";
+const HOLE_CANVAS = "¿Qué pieza va en el hueco para que el robot dibuje la figura?";
+const HOLE_COND = "¿Qué condición va en el hueco para que el robot llegue a la base?";
+const FIX_MAZE = "El robot se choca. ¿Qué cambio arregla el programa?";
+const FIX_CANVAS = "El programa dibuja otra figura. ¿Qué cambio lo arregla?";
 
 export const ITEMS_A: ItemA[] = [
   // ───────────────────────── A1 · Secuencias ─────────────────────────
@@ -102,7 +109,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A2",
     concept: "repetir",
     task: "C",
-    prompt: "Completá el programa para que el robot dibuje esta figura.",
+    prompt: HOLE_CANVAS,
     map: {
       kind: "canvas",
       cols: 5,
@@ -121,7 +128,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A2",
     concept: "repetir",
     task: "D",
-    prompt: "Este programa hace que el robot se choque. ¿Cuál es el programa arreglado?",
+    prompt: FIX_MAZE,
     map: {
       kind: "maze",
       cols: 5,
@@ -136,15 +143,14 @@ export const ITEMS_A: ItemA[] = [
       ],
     },
     given: prog([rep(3, seq("→")), rep(2, seq("↓")), rep(2, seq("→"))]),
-    givenNote: "Programa con error",
     options: [
-      optProg([rep(2, seq("→")), rep(2, seq("↓")), rep(2, seq("→"))]),
-      optProg([rep(3, seq("→")), rep(3, seq("↓")), rep(2, seq("→"))]),
-      optProg([rep(3, seq("→")), rep(2, seq("↓")), ...seq("→")]),
-      optProg([rep(3, seq("→")), rep(2, seq("↑")), rep(2, seq("→"))]),
+      optFix([rep(2, seq("→")), rep(2, seq("↓")), rep(2, seq("→"))], [rep(3, seq("→"))], [rep(2, seq("→"))]),
+      optFix([rep(3, seq("→")), rep(3, seq("↓")), rep(2, seq("→"))], [rep(2, seq("↓"))], [rep(3, seq("↓"))]),
+      optFix([rep(4, seq("→")), rep(2, seq("↓")), rep(2, seq("→"))], [rep(3, seq("→"))], [rep(4, seq("→"))]),
+      optFix([rep(3, seq("→")), rep(2, seq("↓")), ...seq("→")], [rep(2, seq("→"))], seq("→")),
     ],
     correct: 0,
-    notes: "El robot queda en (4,1) y abajo hay pared: el error está en el primer bucle.",
+    notes: "El robot queda en (4,1) y abajo no hay puente: el error está en el primer bucle. El distractor 'repetir 4' tienta por el puente (5,1)-(5,2), que no sigue.",
   },
 
   // ───────────────────────── A3 · Repetir hasta / mientras ─────────────────────────
@@ -182,7 +188,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A3",
     concept: "hasta",
     task: "C",
-    prompt: "Completá el programa para que el robot llegue a la base.",
+    prompt: HOLE_MAZE,
     map: {
       kind: "maze",
       cols: 5,
@@ -205,7 +211,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A3",
     concept: "hasta",
     task: "D",
-    prompt: "Este programa hace que el robot se choque. ¿Cuál es el programa arreglado?",
+    prompt: FIX_MAZE,
     map: {
       kind: "maze",
       cols: 5,
@@ -219,12 +225,11 @@ export const ITEMS_A: ItemA[] = [
       ],
     },
     given: prog([until(seq("→↓"))]),
-    givenNote: "Programa con error",
     options: [
-      optProg([until(seq("→→↓"))]),
-      optProg([until(seq("→↑"))]),
-      optProg([rep(2, seq("→↓"))]),
-      optProg([until(seq("↓→"))]),
+      optFix([until(seq("→→↓"))], seq("→↓"), seq("→→↓")),
+      optFix([until(seq("→↑"))], seq("↓"), seq("↑")),
+      optFix([rep(2, seq("→↓"))], [until([])], [rep(2, [])]),
+      optFix([until(seq("↓→"))], seq("→↓"), seq("↓→")),
     ],
     correct: 0,
     notes: "Los escalones son de dos casillas: falta un → dentro del bucle.",
@@ -254,7 +259,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A4",
     concept: "anidados",
     task: "C",
-    prompt: "Completá el programa para que el robot llegue a la base.",
+    prompt: HOLE_MAZE,
     map: {
       kind: "maze",
       cols: 5,
@@ -281,15 +286,14 @@ export const ITEMS_A: ItemA[] = [
     block: "A4",
     concept: "anidados",
     task: "D",
-    prompt: "Este programa dibuja otra figura. ¿Cuál es el programa arreglado?",
-    map: { kind: "canvas", cols: 6, rows: 7, start: c(1, 7), target: prog([rep(3, [...seq("→"), rep(2, seq("↑"))])]) },
+    prompt: FIX_CANVAS,
+    map: { kind: "canvas", cols: 7, rows: 7, start: c(1, 7), target: prog([rep(3, [...seq("→"), rep(2, seq("↑"))])]) },
     given: prog([rep(3, [rep(2, seq("→")), ...seq("↑")])]),
-    givenNote: "Programa con error",
     options: [
-      optProg([rep(3, [...seq("→"), rep(2, seq("↑"))])]),
-      optProg([rep(2, [rep(2, seq("→")), ...seq("↑")])]),
-      optProg([rep(3, seq("→↑"))]),
-      optProg([rep(3, [rep(2, seq("↑")), ...seq("→")])]),
+      optFix([rep(3, [...seq("→"), rep(2, seq("↑"))])], [rep(2, seq("→")), ...seq("↑")], [...seq("→"), rep(2, seq("↑"))]),
+      optFix([rep(2, [rep(2, seq("→")), ...seq("↑")])], [rep(3, [])], [rep(2, [])]),
+      optFix([rep(3, seq("→↑"))], [rep(2, seq("→"))], seq("→")),
+      optFix([rep(3, [rep(2, seq("→")), rep(2, seq("↑"))])], seq("↑"), [rep(2, seq("↑"))]),
     ],
     correct: 0,
     notes: "Los escalones son 1 a la derecha y 2 arriba: el bucle interno tiene que ser el de ↑.",
@@ -302,7 +306,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A5",
     concept: "si",
     task: "S",
-    prompt: "Llevá al robot hasta la base esquivando las rocas.",
+    prompt: PROMPT_MAZE,
     map: { kind: "maze", cols: 6, rows: 3, start: c(1, 1), base: c(6, 3), allPaths: true, rocks: [c(2, 1), c(4, 2)] },
     options: [
       optProg([until([ifRock("R", seq("↓")), ...seq("→")])]),
@@ -319,7 +323,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A5",
     concept: "si",
     task: "C",
-    prompt: "Completá la condición para que el robot llegue a la base.",
+    prompt: HOLE_COND,
     map: {
       kind: "maze",
       cols: 6,
@@ -341,18 +345,17 @@ export const ITEMS_A: ItemA[] = [
     block: "A5",
     concept: "si",
     task: "D",
-    prompt: "Este programa hace que el robot se choque. ¿Cuál es el programa arreglado?",
+    prompt: FIX_MAZE,
     map: { kind: "maze", cols: 6, rows: 3, start: c(1, 2), base: c(6, 3), allPaths: true, rocks: [c(3, 2), c(5, 1)] },
     given: prog([until([ifRock("R", seq("↑")), ...seq("→")])]),
-    givenNote: "Programa con error",
     options: [
-      optProg([until([ifRock("R", seq("↓")), ...seq("→")])]),
-      optProg([until([ifRock("U", seq("↑")), ...seq("→")])]),
-      optProg([until([...seq("→"), ifRock("R", seq("↑"))])]),
-      optProg([until([ifRock("R", seq("↓↓")), ...seq("→")])]),
+      optFix([until([ifRock("R", seq("↓")), ...seq("→")])], seq("↑"), seq("↓")),
+      optFix([until([ifRock("U", seq("↑")), ...seq("→")])], [ifRock("R", [])], [ifRock("U", [])]),
+      optFix([until([ifPath("R", seq("↑")), ...seq("→")])], [ifRock("R", [])], [ifPath("R", [])]),
+      optFix([until([ifRock("R", seq("↓↓")), ...seq("→")])], seq("↑"), seq("↓↓")),
     ],
     correct: 0,
-    notes: "Esquivar por arriba lleva al robot a la fila 1, donde otra roca lo hace caer del mapa.",
+    notes: "Esquivar por arriba lleva al robot a la fila 1, donde otra roca lo hace salir del mapa. Distractores: cambiar la condición (roca ↑, camino →) o bajar de más.",
   },
 
   // ───────────────────────── A6 · Si-sino ─────────────────────────
@@ -390,7 +393,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A6",
     concept: "si-sino",
     task: "C",
-    prompt: "Completá la condición para que el robot llegue a la base.",
+    prompt: HOLE_COND,
     map: { kind: "maze", cols: 6, rows: 3, start: c(1, 1), base: c(6, 3), allPaths: true, rocks: [c(3, 1), c(5, 2), c(2, 3)] },
     given: prog([until([ifHole(seq("↓"), seq("→"))])]),
     options: [optCond(rock("R")), optCond(rock("D")), optCond(path("D")), optCond(path("R"))],
@@ -403,7 +406,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A6",
     concept: "si-sino",
     task: "D",
-    prompt: "Este programa hace que el robot se choque. ¿Cuál es el programa arreglado?",
+    prompt: FIX_MAZE,
     map: {
       kind: "maze",
       cols: 5,
@@ -416,16 +419,15 @@ export const ITEMS_A: ItemA[] = [
         e(c(1, 1), c(1, 2)), e(c(1, 2), c(1, 3)),
       ],
     },
-    given: prog([until([ifPath("R", seq("↓"), seq("→"))])]),
-    givenNote: "Programa con error",
+    given: prog([until([ifPath("D", seq("→"), seq("↓"))])]),
     options: [
-      optProg([until([ifPath("R", seq("→"), seq("↓"))])]),
-      optProg([until([ifPath("D", seq("↓"), seq("→"))])]),
-      optProg([until([ifPath("R", seq("↓"), seq("↑"))])]),
-      optProg([rep(8, [ifPath("R", seq("↓"), seq("→"))])]),
+      optFix([until([ifPath("R", seq("→"), seq("↓"))])], [ifPath("D", [])], [ifPath("R", [])]),
+      optFix([until([ifRock("D", seq("→"), seq("↓"))])], [ifPath("D", [])], [ifRock("D", [])]),
+      optFix([until([ifPath("D", seq("↓"), seq("↓"))])], seq("→"), seq("↓")),
+      optFix([until([ifPath("D", seq("→"), seq("→"))])], seq("↓"), seq("→")),
     ],
     correct: 0,
-    notes: "Las ramas están invertidas. Un distractor entra en un bucle infinito (sube y baja).",
+    notes: "La condición mira para el lado equivocado: en (1,1) hay camino ↓ (callejón) y avanza →; en (2,1) no hay camino ↓, entonces baja por el si no y se choca. Hay que seguir el si / si no dos veces.",
   },
 
   // ───────────────────────── A7 · Funciones simples ─────────────────────────
@@ -435,7 +437,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A7",
     concept: "funciones",
     task: "C",
-    prompt: "Este programa usa la función Paso, pero falta su definición. ¿Cuál definición hace que dibuje esta figura?",
+    prompt: "¿Qué va adentro de Paso para que el robot dibuje la figura?",
     map: {
       kind: "canvas",
       cols: 9,
@@ -443,8 +445,8 @@ export const ITEMS_A: ItemA[] = [
       start: c(1, 5),
       target: prog([rep(3, [call("Paso")]), ...seq("→→")], [{ name: "Paso", body: seq("→↑") }]),
     },
-    given: prog([rep(3, [call("Paso")]), ...seq("→→")]),
-    options: [optDef("Paso", seq("→↑")), optDef("Paso", seq("↑→")), optDef("Paso", seq("→→↑")), optDef("Paso", seq("↑→→"))],
+    given: prog([rep(3, [call("Paso")]), ...seq("→→")], [{ name: "Paso", body: [HOLE] }]),
+    options: [optPiece(seq("→↑")), optPiece(seq("↑→")), optPiece(seq("→→↑")), optPiece(seq("↑→→"))],
     correct: 0,
     notes: "Escalera de 3 escalones de 1 y una línea final de 2.",
   },
@@ -454,7 +456,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A7",
     concept: "funciones",
     task: "C",
-    prompt: "Completá el programa para que el robot llegue a la base.",
+    prompt: HOLE_MAZE,
     map: {
       kind: "maze",
       cols: 5,
@@ -478,7 +480,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A7",
     concept: "funciones",
     task: "E",
-    prompt: "Este programa usa la función Cuadro y dibuja la figura. ¿Cuál de estos programas SIN función dibuja exactamente lo mismo?",
+    prompt: "¿Qué programa dibuja lo mismo, sin usar Cuadro?",
     map: {
       kind: "canvas",
       cols: 5,
