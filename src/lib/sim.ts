@@ -2,7 +2,7 @@
 // Reglas (ver docs/02-banco-de-items.md, sección 0):
 //  - moverse sin camino, contra una roca o fuera del mapa = choque (falla)
 //  - "repetir hasta llegar a la base": el robot se detiene apenas pisa la base
-//  - "mientras haya camino →": se evalúa antes de cada vuelta
+//  - "mientras haya camino a la derecha": se evalúa antes de cada vuelta
 //  - la misión se cumple si al terminar el programa el robot está en la base
 //    (y juntó todas las gemas cuando el mapa lo exige)
 //  - en lienzo: el robot pinta el rastro; se cumple si el rastro coincide con la figura

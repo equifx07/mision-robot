@@ -181,12 +181,19 @@ function optionSize(item: ItemA, opt: OptionA): { w: number; h: number } {
   }
 }
 
-/** Columnas de opciones: una lista si entran las 4 una debajo de otra; si no, 2 × 2; si igual no entran, 4 en fila. */
+/** Opciones angostas: las 4 en fila entran sin quitarle mucho lugar al mapa. */
+const NARROW_OPTION = 190;
+
+/**
+ * Columnas de opciones: una lista si entran las 4 una debajo de otra; si son angostas (programas
+ * de flechas, que ahora van una debajo de la otra), las 4 en fila; si no, 2 × 2; si igual no entran, 4 en fila.
+ */
 function optionColumns(item: ItemA): { cols: 1 | 2 | 4; w: number } {
   const sizes = item.options.map((o) => optionSize(item, o));
   const hs = sizes.map((s) => s.h + OPT_PAD_H);
   const w = Math.max(...sizes.map((s) => s.w)) + 30;
   if (hs.reduce((a, b) => a + b, 0) + 3 * OPT_GAP <= OPTIONS_H) return { cols: 1, w };
+  if (w <= NARROW_OPTION) return { cols: 4, w };
   if (2 * Math.max(...hs) + OPT_GAP <= OPTIONS_H) return { cols: 2, w };
   return { cols: 4, w };
 }
@@ -212,10 +219,10 @@ function Letter({ pos, selected, corner }: { pos: number; selected: boolean; cor
 
 // ───────── Paneles ─────────
 
-function MapPanel({ item, review, showCoords }: { item: ItemA; review?: boolean; showCoords?: boolean }) {
+function MapPanel({ item, review, showCoords, mapReserve = MAP_RESERVE }: { item: ItemA; review?: boolean; showCoords?: boolean; mapReserve?: number }) {
   const { fail, trail } = failOf(item);
   const visited = review ? simulateOption(item, item.options[item.correct]).steps : undefined;
-  const fit = { maxScale: item.map.kind === "canvas" ? 2.4 : 1.7, reserve: MAP_RESERVE + (fail || item.map.kind === "canvas" ? 26 : 0) };
+  const fit = { maxScale: item.map.kind === "canvas" ? 2.4 : 1.7, reserve: mapReserve + (fail || item.map.kind === "canvas" ? 26 : 0) };
 
   if (item.map.kind === "canvas" && trail) {
     // Arreglar en lienzo: la figura que tiene que dibujar y la que dibuja ahora, lado a lado.
@@ -281,6 +288,8 @@ type Props = {
   /** Modo revisión: muestra la respuesta correcta, el recorrido y el resultado de cada opción. */
   review?: boolean;
   showCoords?: boolean;
+  /** Alto que se reserva para lo que rodea al mapa (dentro de la ventana de práctica hay menos lugar). */
+  mapReserve?: number;
 };
 
 export function ItemView(props: Props) {
@@ -309,7 +318,7 @@ function ReviewHeader({ item, index, total }: { item: Item; index: number; total
   );
 }
 
-function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords }: Props & { item: ItemA }) {
+function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords, mapReserve }: Props & { item: ItemA }) {
   const displayOrder = order ?? item.options.map((_, i) => i);
   const results = review ? item.options.map((o) => simulateOption(item, o)) : null;
   const { cols, w } = optionColumns(item);
@@ -323,11 +332,11 @@ function ItemAView({ item, index, total, selected, onSelect, order, review, show
         <p className="text-xl font-semibold leading-snug text-[#1F2B45]">{item.prompt}</p>
       </div>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-center">
-        <MapPanel item={item} review={review} showCoords={showCoords} />
+        <MapPanel item={item} review={review} showCoords={showCoords} mapReserve={mapReserve} />
         <ProgramPanel item={item} selected={review ? null : selected} />
         <div
           className="grid shrink-0 gap-x-3 gap-y-2.5"
-          style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, ${Math.max(w, 150)}px))` }}
+          style={{ gridTemplateColumns: gridCols === 1 ? `minmax(0, ${Math.max(w, 150)}px)` : `repeat(${gridCols}, minmax(86px, max-content))` }}
         >
           {displayOrder.map((optIdx, pos) => {
             const opt = item.options[optIdx];

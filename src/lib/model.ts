@@ -13,7 +13,7 @@ export type Block =
   | { t: "move"; dir: Dir }
   | { t: "repeat"; n: number; body: Block[] }
   | { t: "until"; body: Block[] } // repetir hasta llegar a la base
-  | { t: "while"; cond: Cond; body: Block[] } // mientras haya camino →
+  | { t: "while"; cond: Cond; body: Block[] } // mientras haya camino a la derecha
   | { t: "if"; cond: Cond; then: Block[]; else?: Block[] }
   | { t: "call"; name: string } // llamada a función
   | { t: "hole" }; // hueco a completar

@@ -28,17 +28,17 @@ type M = {
   h: number; moveW: number; headerH: number; elseH: number; armW: number; footerH: number; footerW: number; r: number;
   padH: number; fs: number; arrow: number; loop: number; flag: number; band: number; shift: number; gap: number;
   pillH: number; pillFs: number; pillPad: number; pillTip: number; numH: number; numMinW: number;
-  cw: number; cx: number; nh: number; th: number; mouthBottom: number; runGap: number; runMax: number; capW: number; capH: number; holeFs: number; holeW: number;
+  cw: number; cx: number; nh: number; th: number; mouthBottom: number; capW: number; capH: number; holeFs: number; holeW: number;
 };
 
 const SIZES: Record<BlockSize, M> = {
   normal: {
     h: 44, moveW: 50, headerH: 48, elseH: 38, armW: 22, footerH: 20, footerW: 98, r: 10, padH: 14, fs: 17, arrow: 24, loop: 22, flag: 22, band: 5, shift: 4, gap: 8,
-    pillH: 32, pillFs: 16, pillPad: 17, pillTip: 12, numH: 30, numMinW: 38, cw: 18, cx: 10, nh: 5, th: 7, mouthBottom: 5, runGap: 5, runMax: 440, capW: 96, capH: 22, holeFs: 24, holeW: 76,
+    pillH: 32, pillFs: 16, pillPad: 17, pillTip: 12, numH: 30, numMinW: 38, cw: 18, cx: 10, nh: 5, th: 7, mouthBottom: 5, capW: 96, capH: 22, holeFs: 24, holeW: 76,
   },
   compact: {
     h: 32, moveW: 36, headerH: 36, elseH: 28, armW: 15, footerH: 12, footerW: 72, r: 8, padH: 10, fs: 14, arrow: 17, loop: 16, flag: 16, band: 4, shift: 3, gap: 6,
-    pillH: 24, pillFs: 13, pillPad: 12, pillTip: 9, numH: 22, numMinW: 28, cw: 14, cx: 8, nh: 4, th: 6, mouthBottom: 3, runGap: 4, runMax: 316, capW: 72, capH: 16, holeFs: 18, holeW: 56,
+    pillH: 24, pillFs: 13, pillPad: 12, pillTip: 9, numH: 22, numMinW: 28, cw: 14, cx: 8, nh: 4, th: 6, mouthBottom: 3, capW: 72, capH: 16, holeFs: 18, holeW: 56,
   },
 };
 
@@ -259,6 +259,17 @@ function Pill({ m, hole, children }: { m: M; hole?: boolean; children: ReactNode
   );
 }
 
+/** Hacia dónde mira la condición, en palabras: "a la derecha", "arriba"… */
+const DIR_PHRASE: Record<Dir, string> = { R: "a la derecha", L: "a la izquierda", U: "arriba", D: "abajo" };
+
+/** Texto de una condición: "roca a la derecha", "camino abajo". */
+export function condText(cond: Cond): string {
+  if (cond.kind === "hole") return "?";
+  return `${cond.kind === "rock" ? "roca" : "camino"} ${DIR_PHRASE[cond.dir]}`;
+}
+
+const PILL_ICON = 0.62;
+
 function CondPill({ cond, m }: { cond: Cond; m: M }) {
   if (cond.kind === "hole")
     return (
@@ -266,12 +277,12 @@ function CondPill({ cond, m }: { cond: Cond; m: M }) {
         <span style={{ padding: "0 10px", fontSize: m.pillFs + 3, fontWeight: 800, color: "#8A6500" }}>?</span>
       </Pill>
     );
-  const ih = Math.round(m.pillH * 0.58);
+  const ih = Math.round(m.pillH * PILL_ICON);
   return (
     <Pill m={m}>
+      <span>{condText(cond)}</span>
+      <SmallArrow dir={cond.dir} size={m.pillFs + 1} color={INK} />
       {cond.kind === "rock" ? <RockIcon h={ih} /> : <PathIcon h={ih} />}
-      <span>{cond.kind === "rock" ? "roca" : "camino"}</span>
-      <SmallArrow dir={cond.dir} size={m.pillFs} color={INK} />
     </Pill>
   );
 }
@@ -542,36 +553,14 @@ function BlockEl({ b, start, ctx, last }: { b: Block; start: number; ctx: Ctx; l
   }
 }
 
-/** Pila vertical de bloques. Las flechas seguidas se agrupan en una fila (se leen de izquierda a derecha). */
+/** Pila vertical de bloques: siempre uno enganchado debajo del otro, en el orden en que se ejecutan. */
 function Stack({ blocks, start, ctx }: { blocks: Block[]; start: number; ctx: Ctx }) {
   const items: ReactNode[] = [];
   let idx = start;
-  let i = 0;
-  while (i < blocks.length) {
-    const b = blocks[i];
-    if (b.t === "move") {
-      const run: { dir: Dir; idx: number }[] = [];
-      while (i < blocks.length) {
-        const cur = blocks[i];
-        if (cur.t !== "move") break;
-        run.push({ dir: cur.dir, idx });
-        idx += 1;
-        i += 1;
-      }
-      const endsStack = i >= blocks.length;
-      items.push(
-        <div key={`r${run[0].idx}`} style={{ display: "flex", flexWrap: "wrap", gap: ctx.m.runGap, maxWidth: ctx.m.runMax }}>
-          {run.map((r, k) => (
-            <MoveBlock key={r.idx} dir={r.dir} m={ctx.m} last={endsStack && k === run.length - 1} state={stateOf(ctx, r.idx)} />
-          ))}
-        </div>,
-      );
-      continue;
-    }
+  blocks.forEach((b, i) => {
     items.push(<BlockEl key={`b${idx}`} b={b} start={idx} ctx={ctx} last={i === blocks.length - 1} />);
     idx += rowsIn([b]);
-    i += 1;
-  }
+  });
   return <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>{items}</div>;
 }
 
@@ -582,9 +571,9 @@ const textW = (t: string, fs: number) => t.length * fs * CHAR_W;
 
 function pillW(cond: Cond, m: M): number {
   if (cond.kind === "hole") return m.pillFs + 23 + m.pillPad * 2;
-  const ih = m.pillH * 0.58;
+  const ih = m.pillH * PILL_ICON;
   const icon = cond.kind === "rock" ? (ih * 24) / 18 : (ih * 40) / 18;
-  return m.pillPad * 2 + icon + 10 + textW(cond.kind === "rock" ? "roca" : "camino", m.pillFs) + m.pillFs;
+  return m.pillPad * 2 + textW(condText(cond), m.pillFs) + 5 + m.pillFs + 1 + 5 + icon;
 }
 
 function headW(b: Block, m: M): number {
@@ -608,24 +597,10 @@ type Size = { w: number; h: number };
 function measureStack(blocks: Block[], m: M): Size {
   let w = 0;
   let h = 0;
-  let i = 0;
-  const perRow = Math.max(1, Math.floor((m.runMax + m.runGap) / (m.moveW + m.runGap)));
-  while (i < blocks.length) {
-    if (blocks[i].t === "move") {
-      let k = 0;
-      while (i < blocks.length && blocks[i].t === "move") {
-        k++;
-        i++;
-      }
-      const rows = Math.ceil(k / perRow);
-      w = Math.max(w, Math.min(k, perRow) * (m.moveW + m.runGap) - m.runGap);
-      h += rows * m.h + (rows - 1) * m.runGap;
-      continue;
-    }
-    const s = measureBlock(blocks[i], m);
+  for (const b of blocks) {
+    const s = measureBlock(b, m);
     w = Math.max(w, s.w);
     h += s.h;
-    i++;
   }
   return { w, h };
 }
@@ -736,7 +711,7 @@ export function PieceView({ blocks, size = "normal" }: { blocks: Block[]; size?:
   return <ProgramView program={{ main: blocks }} size={size} />;
 }
 
-/** Opción de condición para completar: "si hay [roca →]". */
+/** Opción de condición para completar: "si hay [roca a la derecha → (roca)]". */
 export function CondChip({ cond, word = "si hay", size = "normal" }: { cond: Cond; word?: string; size?: BlockSize }) {
   const m = SIZES[size];
   const fam: Fam = word.startsWith("mientras") ? "loop" : "cond";

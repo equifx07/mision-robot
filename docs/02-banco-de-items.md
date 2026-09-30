@@ -51,6 +51,8 @@ Revisión ítem por ítem pensando en chicos de 11 años con y sin experiencia p
 - **Arreglar:** las opciones ya no son 4 programas enteros sino 4 cambios "[esto] → [esto]". Al tocar uno, el programa muestra el cambio aplicado. En el mapa se ve el recorrido del programa con error en rojo y una cruz donde se choca (en lienzo: "Tiene que dibujar" / "Pero dibuja"). Es el primer paso real de depurar: ver la falla y buscar la causa.
 - **Lienzo (pintar):** hoja cuadriculada, punto verde de inicio, el robot espera al costado sin tapar la figura y cada esquina de la figura tiene un puntito para contar pasos. Leyenda: "empieza en el punto verde · cada flecha pinta un lado de un cuadradito".
 - Bloque `repetir hasta llegar a la base` → `repetir hasta la base` (más corto; mismo significado).
+- Las condiciones dicen la dirección en palabras, con la flechita y el dibujo al final: `si hay [roca a la derecha → (roca)]`, `mientras haya [camino abajo ↓ (camino)]`.
+- Regla para todos los programas: los bloques van siempre uno debajo del otro, enganchados, en el orden en que se ejecutan (ya no hay flechas en fila). Las opciones angostas se muestran las 4 en fila.
 
 **Ítems con contenido nuevo**
 - A2.3: opciones como cambios; se agrega el distractor "repetir 3 → repetir 4" (tienta por el puente (5,1)-(5,2), que no sigue).
@@ -60,6 +62,7 @@ Revisión ítem por ítem pensando en chicos de 11 años con y sin experiencia p
 - A7.1: la definición de Paso tiene un hueco (mismo formato que los demás de completar); las opciones son las piezas.
 
 **Tutorial y prácticas**
+- Todo el tutorial (explicación inicial, bloques nuevos y prácticas) se muestra en una ventana emergente violeta sobre la app oscurecida, para que no se confunda con una misión: franja "EXPLICACIÓN · Solo mirá: no hay que resolver nada" o "PRÁCTICA · No cuenta", robot guía que habla en primera persona en un globo, demostraciones que arrancan solas, pasos con puntitos y botones violetas. Las misiones nunca usan el violeta: pantalla completa, reloj, barra de progreso y Confirmar verde. Diseño: https://claude.ai/artifact/M45qd4s6ithwSCrCHBHdn9
 - Se quitan las gemas de la explicación (ningún ítem las usa).
 - "¡Probá vos!" al final de la explicación: una misión chiquita con botón ▶ Probar.
 - Prácticas de formato, justo antes del primer ítem de cada uno, con botón ▶ Probar y ejemplo resuelto: pintar (antes de A1.2), completar (antes de A2.2) y arreglar (antes de A2.3). Siguen el principio del BCTt de mostrar un ejemplo por tipo de ítem; en la prueba no hay botón Probar.

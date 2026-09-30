@@ -1,89 +1,118 @@
 import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
+import { itemsQualityInsight, TASK_NAME } from "@/lib/insights";
 import { ITEMS } from "@/lib/items";
-import { dimensionOf, fmt, pct, TASK_LABEL } from "@/lib/stats";
-import { Card, HBars } from "@/components/charts/Charts";
+import { DISC_SCALE, discTone, FEW_DATA, itemStatus, PCT_RANGES, pctTone, SCALE, TONES, type Tone } from "@/lib/semaforo";
+import { dimensionOf, fmt, pct } from "@/lib/stats";
+import { C, Chip, EmptyState, ExplainedSection, PageHeader, ScaleLegend } from "@/components/admin/ui";
 import { FiltersBar } from "../Filters";
 
 export const dynamic = "force-dynamic";
-
-const FLAG: Record<string, { text: string; cls: string }> = {
-  ok: { text: "OK", cls: "bg-green-100 text-green-800" },
-  facil: { text: "Muy fácil (p > 0,90)", cls: "bg-amber-100 text-amber-800" },
-  dificil: { text: "Muy difícil (p < 0,25)", cls: "bg-amber-100 text-amber-800" },
-  "baja-disc": { text: "Discrimina poco (< 0,20)", cls: "bg-orange-100 text-orange-800" },
-  negativa: { text: "Discriminación negativa: revisar", cls: "bg-red-100 text-red-800" },
-};
 
 export default async function ItemsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdmin();
   const filters = parseFilters(await searchParams);
   const d = loadDashboard(filters);
   const n = d.scored.length;
+  const rows = d.items.map((st) => ({ st, item: ITEMS.find((i) => i.id === st.id)!, status: itemStatus(st.p, st.rpb) }));
+  const count = (pred: (r: (typeof rows)[number]) => boolean) => rows.filter(pred).length;
+  const summary: { tone: Tone; text: string }[] = [
+    { tone: "bien" as Tone, text: `${count((r) => r.status.label === "Funciona bien")} funcionan bien` },
+    { tone: "intermedio" as Tone, text: `${count((r) => r.status.tone === "intermedio")} aceptables o muy difíciles` },
+    { tone: "bajo" as Tone, text: `${count((r) => r.status.tone === "bajo" || r.status.tone === "critico")} para revisar` },
+    { tone: "neutro" as Tone, text: `${count((r) => r.status.tone === "neutro")} muy fáciles o sin datos` },
+  ].filter((x) => !x.text.startsWith("0 "));
+  const grid = "grid grid-cols-[56px_minmax(0,1fr)_90px_180px_88px_176px_52px_196px] items-center gap-3";
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900">Análisis de ítems</h1>
-        <p className="text-sm text-slate-500">
-          Dificultad (p): proporción de aciertos. Discriminación: correlación punto-biserial entre el ítem y el resto de la prueba (ideal ≥ 0,30). Alfa de Cronbach global: <strong>{fmt(d.alpha, 2)}</strong> (Parte A: {fmt(d.alphaA, 2)}), con {n} estudiante{n === 1 ? "" : "s"}. Los indicadores se vuelven confiables a partir de unos 30 estudiantes.
-        </p>
-      </div>
+    <>
+      <PageHeader title="Calidad de las misiones" subtitle="Esta página revisa la prueba, no a los chicos: muestra si cada misión funcionó como se esperaba. Sirve para decidir qué ajustar después del piloto." />
       <FiltersBar filters={filters} schools={d.schools} action="/admin/items" />
 
       {n === 0 ? (
-        <p className="rounded-2xl bg-white p-6 text-slate-600 ring-1 ring-black/10">Todavía no hay pruebas terminadas con estos filtros.</p>
+        <EmptyState>Todavía no hay pruebas terminadas con estos filtros.</EmptyState>
       ) : (
-        <>
-          <Card title="Dificultad por ítem" subtitle="Proporción de estudiantes que respondió bien. Ordenados como en la prueba.">
-            <HBars rows={d.items.map((it) => ({ label: it.id, value: it.p }))} max={1} width={620} />
-          </Card>
-          <div className="overflow-x-auto rounded-2xl bg-white ring-1 ring-black/10">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  {["Ítem", "Dimensión", "Tarea", "p", "Discrim.", "Opciones elegidas (a · b · c · d)", "Sin resp.", "Tiempo mediano", "Estado"].map((h) => (
-                    <th key={h} className="px-3 py-2">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {d.items.map((st) => {
-                  const item = ITEMS.find((i) => i.id === st.id)!;
-                  const f = FLAG[st.flag];
-                  return (
-                    <tr key={st.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 font-mono text-xs font-semibold">{st.id}</td>
-                      <td className="px-3 py-2">{dimensionOf(item).label}</td>
-                      <td className="px-3 py-2">{item.part === "A" ? TASK_LABEL[item.task] : "–"}</td>
-                      <td className="px-3 py-2 tabular-nums">{fmt(st.p, 2)}</td>
-                      <td className="px-3 py-2 tabular-nums">{fmt(st.rpb, 2)}</td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {st.choices.map((c, i) => (
-                          <span key={i} className={`mr-2 ${i === item.correct ? "font-bold text-green-800" : "text-slate-600"}`}>
-                            {"abcd"[i]} {c}
-                            {i === item.correct ? " ✓" : ""}
-                          </span>
-                        ))}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">{st.omitted}</td>
-                      <td className="px-3 py-2 tabular-nums">{Number.isFinite(st.medianTimeS) ? `${fmt(st.medianTimeS, 0)} s` : "–"}</td>
-                      <td className="px-3 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${f.cls}`}>{f.text}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <ExplainedSection
+          id="misiones"
+          kicker="1 · MISIÓN POR MISIÓN"
+          question="¿Cada misión funcionó bien?"
+          wide
+          muestra="Una fila por misión. Acierto: qué porcentaje de chicos la resolvió bien. Separa: si la misión distingue a los chicos que rinden más de los que rinden menos. También qué opción eligieron y cuánto tardaron."
+          medicion={`Acierto: respuestas correctas sobre chicos que la respondieron. Separa: correlación punto-biserial entre acertar la misión y el puntaje en el resto de la prueba; desde 0,30 es buena y debajo de 0,20 la misión casi no ayuda a medir. Confiabilidad de toda la prueba (alfa de Cronbach): ${fmt(d.alpha, 2)}.`}
+          observa={itemsQualityInsight(d.items, n)}
+        >
+          <div className="flex flex-wrap items-center gap-2.5">
+            {summary.map((x) => (
+              <Chip key={x.text} tone={x.tone} className="!px-3 !py-1.5 !text-sm">
+                {x.text}
+              </Chip>
+            ))}
+            {n < FEW_DATA && (
+              <span className="text-[13px]" style={{ color: C.muted }}>
+                Con {n} {n === 1 ? "chico" : "chicos"}, estos valores son orientativos.
+              </span>
+            )}
           </div>
-          <p className="text-xs text-slate-500">
-            Las opciones se cuentan en el orden canónico del banco (a es siempre la correcta en el banco; los chicos las ven mezcladas). Un distractor que nadie elige no aporta; uno que eligen más que la correcta con discriminación negativa sugiere un ítem ambiguo. Acierto global esperado tras el piloto: {pct(0.6)} aproximado.
+
+          <div className="overflow-x-auto rounded-[20px] border bg-white px-5 pb-3 pt-2" style={{ borderColor: C.line }}>
+            <div className="min-w-[1000px]">
+              <div className={`${grid} h-11 border-b-2 text-xs font-bold tracking-[0.06em]`} style={{ borderColor: C.line, color: C.muted }}>
+                <span>MISIÓN</span>
+                <span>QUÉ EVALÚA</span>
+                <span>TAREA</span>
+                <span>ACIERTO</span>
+                <span>SEPARA</span>
+                <span>OPCIONES ELEGIDAS</span>
+                <span>TIEMPO</span>
+                <span>ESTADO</span>
+              </div>
+              {rows.map(({ st, item, status }) => {
+                const pt = TONES[pctTone(st.p)];
+                const dt = TONES[discTone(st.rpb)];
+                return (
+                  <div key={st.id} className={`${grid} min-h-[44px] border-b py-1.5 text-sm`} style={{ borderColor: "#F0EDE6" }}>
+                    <span className="font-bold">{st.id}</span>
+                    <span className="leading-tight">{dimensionOf(item).label}</span>
+                    <span style={{ color: C.secondary }}>{item.part === "A" ? TASK_NAME[item.task].split(" ")[0] : "—"}</span>
+                    <div className="flex items-center gap-2.5" title={`${st.id}: ${pct(st.p)} de acierto`}>
+                      <div className="h-3 w-[120px] overflow-hidden rounded-md" style={{ background: C.soft }}>
+                        <div className="h-3 rounded-md" style={{ width: `${Number.isFinite(st.p) ? st.p * 100 : 0}%`, background: pt.fill }} />
+                      </div>
+                      <span className="font-bold">{pct(st.p)}</span>
+                    </div>
+                    <span title={Number.isFinite(st.rpb) ? `Separa: ${fmt(st.rpb, 2)}` : "No se puede calcular"}>
+                      <span className="rounded-full px-2.5 py-0.5 font-bold" style={{ background: dt.fill, color: dt.text }}>
+                        {Number.isFinite(st.rpb) ? fmt(st.rpb, 2) : "sin dato"}
+                      </span>
+                    </span>
+                    <span className="flex flex-wrap gap-x-2 text-[13px] tabular-nums" style={{ color: C.secondary }}>
+                      {st.choices.map((c, i) => (
+                        <span key={i} className={i === item.correct ? "font-bold text-[#22211F]" : ""}>
+                          {"abcd"[i]} {c}
+                          {i === item.correct ? "✓" : ""}
+                        </span>
+                      ))}
+                      {st.omitted > 0 && <span>sin resp. {st.omitted}</span>}
+                    </span>
+                    <span style={{ color: C.secondary }}>{Number.isFinite(st.medianTimeS) ? `${fmt(st.medianTimeS, 0)} s` : "–"}</span>
+                    <span>
+                      <Chip tone={status.tone}>{status.label}</Chip>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ScaleLegend title="Colores de «Acierto»" items={SCALE.map((t) => ({ fill: TONES[t].fill, label: TONES[t].label, range: PCT_RANGES[t as keyof typeof PCT_RANGES] }))} />
+            <ScaleLegend title="Colores de «Separa»" items={DISC_SCALE.map((x) => ({ fill: TONES[x.tone].fill, label: x.label, range: x.range }))} />
+          </div>
+          <p className="m-0 text-[13px]" style={{ color: C.muted }}>
+            Las opciones se cuentan en el orden del banco (la a es siempre la correcta; los chicos las ven mezcladas). Un distractor que nadie elige no aporta; uno que eligen más que la correcta, con una misión que separa poco, sugiere que la consigna es ambigua.
           </p>
-        </>
+        </ExplainedSection>
       )}
-    </div>
+    </>
   );
 }

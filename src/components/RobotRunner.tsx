@@ -14,8 +14,12 @@ type Props = {
   outcome?: string;
   /** Empieza a animar solo al apretar ▶ (por defecto). */
   stepMs?: number;
-  /** Arranca solo al aparecer (prácticas: "Probar"). */
+  /** Arranca solo al aparecer (demostraciones del tutorial y "Probar"). */
   autoPlay?: boolean;
+  /** "guide": dentro de la ventana violeta del tutorial. */
+  tone?: "test" | "guide";
+  /** Alto que se reserva para lo que rodea al mapa. */
+  mapReserve?: number;
   onFinished?: () => void;
 };
 
@@ -25,7 +29,7 @@ const CRASH_TEXT = {
   edge: "¡Ups! Se salió del mapa. La misión falla.",
 } as const;
 
-export function RobotRunner({ map, program, outcome, stepMs = 550, autoPlay, onFinished }: Props) {
+export function RobotRunner({ map, program, outcome, stepMs = 550, autoPlay, tone = "test", mapReserve = 330, onFinished }: Props) {
   const result = useMemo(() => simulate(map, program), [map, program]);
   const ghost = useMemo(() => (map.kind === "canvas" ? targetTrail(map) : undefined), [map]);
   const [step, setStep] = useState<number>(autoPlay ? 0 : -1); // -1: sin empezar; k: se hicieron k movimientos
@@ -91,7 +95,7 @@ export function RobotRunner({ map, program, outcome, stepMs = 550, autoPlay, onF
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div className="rounded-2xl bg-white p-2.5 shadow-sm ring-2 ring-[#EDE3CC]">
-        <MapView map={map} robotAt={map.kind === "canvas" && step < 0 ? undefined : robotAt} robotState={robotState} visited={map.kind === "maze" ? visited : undefined} trail={map.kind === "canvas" ? (step < 0 ? new Set() : trail) : undefined} ghost={ghost} fit={{ maxScale: map.kind === "canvas" ? 1.8 : 1.4, reserve: 330 }} />
+        <MapView map={map} robotAt={map.kind === "canvas" && step < 0 ? undefined : robotAt} robotState={robotState} visited={map.kind === "maze" ? visited : undefined} trail={map.kind === "canvas" ? (step < 0 ? new Set() : trail) : undefined} ghost={ghost} fit={{ maxScale: map.kind === "canvas" ? 2.4 : 1.4, reserve: mapReserve }} />
       </div>
       <div className="flex flex-col gap-3">
         <div className="rounded-2xl bg-white p-3 shadow-sm ring-2 ring-[#EDE3CC]">
@@ -102,9 +106,13 @@ export function RobotRunner({ map, program, outcome, stepMs = 550, autoPlay, onF
             type="button"
             onClick={start}
             disabled={running}
-            className="rounded-xl bg-[#176CE0] px-4 py-2 text-base font-semibold text-white shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] disabled:opacity-50"
+            className={
+              tone === "guide"
+                ? "min-h-[44px] rounded-xl border-2 border-[#CFC2FA] bg-white px-4 py-1.5 text-base font-semibold text-[#3A2592] hover:bg-[#F6F3FF] disabled:opacity-50"
+                : "rounded-xl bg-[#176CE0] px-4 py-2 text-base font-semibold text-white shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] disabled:opacity-50"
+            }
           >
-            {step < 0 ? "▶ Ejecutar" : "↺ Ver de nuevo"}
+            {step < 0 ? "▶ Ejecutar" : running ? "Mirando…" : "↺ Ver de nuevo"}
           </button>
         </div>
         {message && <div className={`rounded-xl px-3 py-2 text-sm font-semibold ${good ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>{message}</div>}

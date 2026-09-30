@@ -25,20 +25,23 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
-      <form onSubmit={submit} className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/10">
-        <h1 className="text-xl font-black text-slate-900">Panel de administración</h1>
-        <label className="text-sm font-semibold text-slate-700">
+      <form onSubmit={submit} className="flex flex-col gap-4 rounded-[20px] border border-[#E5E1D8] bg-white p-6">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-[family-name:var(--font-fredoka)] text-2xl font-semibold">Misión Robot</span>
+          <h1 className="m-0 text-base font-semibold text-[#55504A]">Panel de resultados</h1>
+        </div>
+        <label className="text-sm font-semibold text-[#3D3A35]">
           Contraseña
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-xl border-2 border-slate-300 px-3 py-2 text-base focus:border-blue-500 focus:outline-none"
+            className="mt-1 w-full rounded-xl border-2 border-[#D8D3C8] px-3 py-2 text-base focus:border-[#22211F] focus:outline-none"
             autoFocus
           />
         </label>
-        {error && <p className="text-sm font-medium text-red-700">{error}</p>}
-        <button type="submit" disabled={busy || !password} className="rounded-xl bg-blue-600 px-4 py-2.5 font-bold text-white hover:bg-blue-700 disabled:opacity-50">
+        {error && <p className="m-0 rounded-xl bg-[#FADBD6] px-3 py-2 text-sm font-semibold text-[#9B2019]">{error}</p>}
+        <button type="submit" disabled={busy || !password} className="min-h-[44px] rounded-xl bg-[#22211F] px-4 font-bold text-white hover:bg-black disabled:opacity-50">
           Entrar
         </button>
       </form>

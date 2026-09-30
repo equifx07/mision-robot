@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ItemView } from "@/components/ItemView";
 import { Robot } from "@/components/MapView";
-import { IntroStepContent, PracticeContent } from "@/components/Tutorial";
+import { introScreens, practiceScreens, TutorialModal } from "@/components/Tutorial";
 import { ATTEMPT_KEY } from "@/components/StartForm";
 import { ITEMS } from "@/lib/items";
-import { INTRO, PRACTICES } from "@/lib/tutorial";
+import { PRACTICES } from "@/lib/tutorial";
+
+const INTRO_SCREENS = introScreens();
 
 const TIME_LIMIT_MS = 45 * 60 * 1000;
 
@@ -14,7 +16,7 @@ type Phase =
   | { kind: "loading" }
   | { kind: "error"; message: string }
   | { kind: "intro"; step: number }
-  | { kind: "practice"; itemIndex: number }
+  | { kind: "practice"; itemIndex: number; sub: number }
   | { kind: "item"; itemIndex: number }
   | { kind: "finishing" }
   | { kind: "done"; status: string };
@@ -62,7 +64,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       }
       const item = ITEMS[index];
       if (!skipPractice && PRACTICES[item.id]) {
-        setPhase({ kind: "practice", itemIndex: index });
+        setPhase({ kind: "practice", itemIndex: index, sub: 0 });
         return;
       }
       setSelected(null);
@@ -205,45 +207,42 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       </div>
     );
   else if (phase.kind === "intro") {
-    const step = INTRO[phase.step];
-    const last = phase.step === INTRO.length - 1;
+    // Explicación inicial: ventana emergente violeta sobre la app vacía.
+    const last = phase.step === INTRO_SCREENS.length - 1;
     body = (
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
-        <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-          Explicación · {phase.step + 1} de {INTRO.length}
-        </div>
-        <IntroStepContent step={step} stepKey={String(phase.step)} />
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            disabled={phase.step === 0}
-            onClick={() => setPhase({ kind: "intro", step: phase.step - 1 })}
-            className="rounded-xl px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30"
-          >
-            ← Atrás
-          </button>
-          <button
-            type="button"
-            onClick={() => (last ? goToItem(0) : setPhase({ kind: "intro", step: phase.step + 1 }))}
-            className="rounded-2xl bg-[#176CE0] shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] px-6 py-3 text-lg font-semibold text-white"
-          >
-            {last ? "Empezar" : "Siguiente →"}
-          </button>
-        </div>
-      </div>
+      <>
+        <div className="min-h-[calc(100vh-52px)]" />
+        <TutorialModal
+          screen={INTRO_SCREENS[phase.step]}
+          screenKey={`intro-${phase.step}`}
+          step={{ index: phase.step, total: INTRO_SCREENS.length }}
+          note="La prueba todavía no empezó. Nada de esto cuenta."
+          onBack={phase.step > 0 ? () => setPhase({ kind: "intro", step: phase.step - 1 }) : undefined}
+          onNext={() => (last ? goToItem(0) : setPhase({ kind: "intro", step: phase.step + 1 }))}
+          nextLabel={last ? "Empezar la prueba →" : "Siguiente →"}
+        />
+      </>
     );
   } else if (phase.kind === "practice") {
+    // Bloque nuevo o formato nuevo antes de una misión: la misma ventana violeta.
     const item = ITEMS[phase.itemIndex];
-    const p = PRACTICES[item.id];
+    const screens = practiceScreens(PRACTICES[item.id]);
+    const sub = Math.min(phase.sub, screens.length - 1);
+    const last = sub === screens.length - 1;
     body = (
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 sm:p-6">
-        <PracticeContent practice={p} practiceKey={item.id} />
-        <div className="flex justify-end">
-          <button type="button" onClick={() => goToItem(phase.itemIndex, true)} className="rounded-2xl bg-[#176CE0] shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] px-6 py-3 text-lg font-semibold text-white">
-            Ir a la misión {phase.itemIndex + 1} →
-          </button>
-        </div>
-      </div>
+      <>
+        <div className="min-h-[calc(100vh-52px)]" />
+        <TutorialModal
+          screen={screens[sub]}
+          screenKey={`${item.id}-${sub}`}
+          step={{ index: sub, total: screens.length }}
+          context={`Antes de la misión ${phase.itemIndex + 1}`}
+          note="Esto no cuenta para el resultado."
+          onBack={sub > 0 ? () => setPhase({ kind: "practice", itemIndex: phase.itemIndex, sub: sub - 1 }) : undefined}
+          onNext={() => (last ? goToItem(phase.itemIndex, true) : setPhase({ kind: "practice", itemIndex: phase.itemIndex, sub: sub + 1 }))}
+          nextLabel={last ? `Ir a la misión ${phase.itemIndex + 1} →` : "Siguiente →"}
+        />
+      </>
     );
   } else if (phase.kind === "item") {
     const item = ITEMS[phase.itemIndex];

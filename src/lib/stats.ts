@@ -17,6 +17,16 @@ export function levelOf(score: number): Level {
   return LEVELS.find((l) => score >= l.min && score <= l.max) ?? LEVELS[0];
 }
 
+/**
+ * Nivel de un valor con decimales (p. ej. un promedio de 16,5 cae en En desarrollo).
+ * Se redondea a un decimal, como se muestra: un 16,95 se ve "17,0" y tiene que decir Logrado.
+ */
+export function levelOfMean(x: number): Level {
+  const v = Math.round(x * 10) / 10;
+  for (let i = LEVELS.length - 1; i >= 0; i--) if (v >= LEVELS[i].min) return LEVELS[i];
+  return LEVELS[0];
+}
+
 export const CONCEPT_LABEL: Record<ItemA["concept"], string> = {
   secuencias: "Secuencias",
   repetir: "Repetir N veces",

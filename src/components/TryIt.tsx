@@ -1,13 +1,16 @@
 "use client";
 
-// Misión de práctica: mismo formato que la prueba, pero con un botón "Probar" que hace
-// correr al robot con la opción elegida. No cuenta para el resultado.
+// Misión de práctica dentro de la ventana del tutorial: mismo formato que la prueba, pero con un
+// botón "Probar" que hace correr al robot con la opción elegida. No cuenta para el resultado.
 
 import { useState } from "react";
 import { ItemView } from "@/components/ItemView";
 import { RobotRunner } from "@/components/RobotRunner";
 import type { ItemA } from "@/lib/model";
 import { effectiveProgram, simulateOption } from "@/lib/sim";
+
+const VIOLET = "#6B4FD8";
+const VIOLET_DARK = "#3A2592";
 
 export function TryIt({ item }: { item: ItemA }) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -18,18 +21,18 @@ export function TryIt({ item }: { item: ItemA }) {
     const opt = item.options[selected];
     const ok = simulateOption(item, opt).ok;
     return (
-      <div className="flex flex-col gap-3 rounded-3xl bg-[#FFF8E6] p-3 ring-2 ring-[#F5D78A] sm:p-4">
-        <div className="text-sm font-bold uppercase tracking-wide text-[#8A6500]">Así se mueve con tu elección</div>
-        <RobotRunner key={runKey} map={item.map} program={effectiveProgram(item, opt)} autoPlay />
+      <div className="flex flex-col gap-3">
+        <div className="text-sm font-bold uppercase tracking-wide text-[#5B4B9A]">Así me muevo con tu elección</div>
+        <RobotRunner key={runKey} map={item.map} program={effectiveProgram(item, opt)} autoPlay tone="guide" mapReserve={400} />
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={() => setTrying(false)}
-            className="rounded-xl bg-white px-4 py-2 font-semibold text-[#1F2B45] ring-2 ring-[#EDE3CC] hover:bg-slate-50"
+            className="min-h-[44px] rounded-xl border-2 border-[#CFC2FA] bg-white px-4 font-semibold text-[#3A2592] hover:bg-[#F6F3FF]"
           >
             ← Elegir otra opción
           </button>
-          <span className={`text-base font-semibold ${ok ? "text-green-700" : "text-[#5B6477]"}`}>
+          <span className={`text-base font-semibold ${ok ? "text-green-700" : "text-[#5B4B9A]"}`}>
             {ok ? "¡Muy bien! En la prueba vas a tener que pensarlo sin probar." : "Esa opción no funciona. Probá con otra."}
           </span>
         </div>
@@ -38,9 +41,8 @@ export function TryIt({ item }: { item: ItemA }) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-3xl bg-[#FFF8E6] p-3 ring-2 ring-[#F5D78A] sm:p-4">
-      <div className="text-sm font-bold uppercase tracking-wide text-[#8A6500]">Probá vos</div>
-      <ItemView item={item} index={0} total={1} selected={selected} onSelect={setSelected} />
+    <div className="flex flex-col gap-3">
+      <ItemView item={item} index={0} total={1} selected={selected} onSelect={setSelected} mapReserve={item.map.kind === "canvas" ? 420 : 390} />
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -49,11 +51,15 @@ export function TryIt({ item }: { item: ItemA }) {
             setRunKey((k) => k + 1);
             setTrying(true);
           }}
-          className="rounded-xl bg-[#176CE0] px-5 py-2.5 text-lg font-semibold text-white shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9] disabled:opacity-40"
+          className="flex min-h-[48px] items-center gap-2 rounded-2xl px-5 text-lg font-bold text-white hover:brightness-110 disabled:opacity-40"
+          style={{ background: VIOLET, boxShadow: `inset 0 -4px 0 ${VIOLET_DARK}` }}
         >
-          ▶ Probar
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+            <path d="M8 5v14l11-7z" fill="#FFFFFF" />
+          </svg>
+          Probar
         </button>
-        <span className="text-base text-[#5B6477]">{selected === null ? "Tocá una opción." : "Apretá Probar para ver qué pasa."}</span>
+        <span className="text-base text-[#5B4B9A]">{selected === null ? "Tocá una opción." : "Apretá Probar para ver qué pasa."}</span>
       </div>
     </div>
   );
