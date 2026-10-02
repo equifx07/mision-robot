@@ -285,15 +285,37 @@ export function CohenMatrix({ groups }: { groups: { name: string; scores: number
 // ───────── Mapa de calor con el semáforo ─────────
 
 export type HeatRow = { label: string; sub?: string; values: number[] };
+export type HeatCell = { fill: string; text: string; label: string; value: string };
 
-export function ToneHeatmap({ columns, groups, labelWidth = 230 }: { columns: string[]; groups: { title?: string; rows: HeatRow[] }[]; labelWidth?: number }) {
+const pctCell = (v: number): HeatCell => {
+  const t = TONES[pctTone(v)];
+  return { fill: t.fill, text: t.text, label: t.label, value: pct(v) };
+};
+
+/**
+ * Mapa de calor. Por defecto pinta porcentajes de acierto con el semáforo; `cell` permite otra escala
+ * (apuro, segundos). `compact`: celdas y títulos más chicos, para muchas columnas (una por misión).
+ */
+export function ToneHeatmap({
+  columns,
+  groups,
+  labelWidth = 230,
+  cell = pctCell,
+  compact,
+}: {
+  columns: string[];
+  groups: { title?: string; rows: HeatRow[] }[];
+  labelWidth?: number;
+  cell?: (v: number) => HeatCell;
+  compact?: boolean;
+}) {
   const cols = `${labelWidth}px repeat(${columns.length}, minmax(0, 1fr))`;
   return (
     <div className="flex flex-col gap-1.5">
       <div className="grid gap-1" style={{ gridTemplateColumns: cols }}>
         <span />
         {columns.map((c) => (
-          <span key={c} className="self-end pb-1.5 text-center text-sm font-bold leading-tight" title={c}>
+          <span key={c} className={`self-end pb-1.5 text-center font-bold leading-tight ${compact ? "text-[11px]" : "text-sm"}`} title={c}>
             {c}
           </span>
         ))}
@@ -316,16 +338,16 @@ export function ToneHeatmap({ columns, groups, labelWidth = 230 }: { columns: st
                 )}
               </div>
               {r.values.map((v, i) => {
-                const t = TONES[pctTone(v)];
                 const ok = Number.isFinite(v);
+                const t = ok ? cell(v) : null;
                 return (
                   <div
                     key={i}
-                    title={`${r.label} · ${columns[i]}: ${ok ? `${pct(v)} (${t.label})` : "sin datos"}`}
-                    className="flex h-10 items-center justify-center rounded-lg text-[15px] font-bold"
-                    style={ok ? { background: t.fill, color: t.text } : { background: "#F1EFEA", color: C.muted }}
+                    title={`${r.label} · ${columns[i]}: ${t ? `${t.value} (${t.label})` : "sin datos"}`}
+                    className={`flex items-center justify-center font-bold ${compact ? "h-9 rounded-md text-[13px]" : "h-10 rounded-lg text-[15px]"}`}
+                    style={t ? { background: t.fill, color: t.text } : { background: "#F1EFEA", color: C.muted }}
                   >
-                    {ok ? pct(v) : "–"}
+                    {t ? t.value : "–"}
                   </div>
                 );
               })}

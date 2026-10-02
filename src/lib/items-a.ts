@@ -25,11 +25,12 @@ import {
 // ("Completar", "Arreglar", "Comparar") remite a la práctica de ese formato (ver tutorial.ts).
 const PROMPT_MAZE = "¿Qué programa lleva al robot hasta la base?";
 const PROMPT_CANVAS = "¿Qué programa dibuja esta figura?";
-const HOLE_MAZE = "¿Qué pieza va en el hueco para que el robot llegue a la base?";
-const HOLE_CANVAS = "¿Qué pieza va en el hueco para que el robot dibuje la figura?";
-const HOLE_COND = "¿Qué condición va en el hueco para que el robot llegue a la base?";
-const FIX_MAZE = "El robot se choca. ¿Qué cambio arregla el programa?";
-const FIX_CANVAS = "El programa dibuja otra figura. ¿Qué cambio lo arregla?";
+const HOLE_MAZE = "Al programa le falta una pieza. ¿Cuál va en el hueco para llegar a la base?";
+const HOLE_CANVAS = "Al programa le falta una pieza. ¿Cuál va en el hueco para dibujar la figura?";
+const HOLE_COND = "Al programa le falta una condición. ¿Cuál va en el hueco para llegar a la base?";
+// En arreglar, la pregunta ("elegí el cambio que lo arregla") va en los pasos que se muestran al lado.
+const FIX_MAZE = "El robot se choca: el programa tiene un error.";
+const FIX_CANVAS = "Dibuja otra figura: el programa tiene un error.";
 
 export const ITEMS_A: ItemA[] = [
   // ───────────────────────── A1 · Secuencias ─────────────────────────
@@ -437,7 +438,7 @@ export const ITEMS_A: ItemA[] = [
     block: "A7",
     concept: "funciones",
     task: "C",
-    prompt: "¿Qué va adentro de Paso para que el robot dibuje la figura?",
+    prompt: "A Paso le falta lo de adentro. ¿Cuál va en el hueco para dibujar la figura?",
     map: {
       kind: "canvas",
       cols: 9,

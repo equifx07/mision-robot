@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
+import { attentionStatus, loadReference, SIGNAL_LABEL, studentSignals } from "@/lib/patrones";
 import { LEVEL_TONE } from "@/lib/semaforo";
 import { fmt, levelOf, MAX_SCORE } from "@/lib/stats";
 import { C, Chip, PageHeader } from "@/components/admin/ui";
@@ -16,7 +17,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const filters = parseFilters(await searchParams);
   const d = loadDashboard({ ...filters, includeUnfinished: true });
   const rows = d.scored.filter((r) => filters.includeUnfinished || r.attempt.status !== "in_progress");
-  const head = ["Nombre", "Colegio", "Curso", "Fecha", "Estado", "Total", "Parte A", "Parte B", "Nivel", "Tiempo", "Edad", "Exp. previa", "Dispositivo"];
+  const ref = loadReference();
+  const head = ["Nombre", "Colegio", "Curso", "Fecha", "Estado", "Total", "Parte A", "Parte B", "Nivel", "Tiempo", "Atención", "Edad", "Exp. previa", "Dispositivo"];
 
   return (
     <>
@@ -38,6 +40,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
               const a = r.attempt;
               const finished = a.status !== "in_progress";
               const lv = levelOf(r.total);
+              const sig = studentSignals(r, ref);
+              const att = attentionStatus(sig.signals.length);
               return (
                 <tr key={a.id} className="border-t hover:bg-[#FAF8F4]" style={{ borderColor: "#F0EDE6" }}>
                   <td className="px-3 py-2.5 font-semibold">
@@ -54,6 +58,9 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                   <td className="px-3 py-2.5 tabular-nums">{finished ? `${a.score_b ?? 0}/8` : "–"}</td>
                   <td className="px-3 py-2.5">{finished ? <Chip tone={LEVEL_TONE[lv.key]}>{lv.name}</Chip> : "–"}</td>
                   <td className="px-3 py-2.5 tabular-nums">{a.total_ms ? `${fmt(a.total_ms / 60000, 0)} min` : "–"}</td>
+                  <td className="px-3 py-2.5" title={sig.signals.map((k) => SIGNAL_LABEL[k]).join(", ") || "Sin señales de desatención"}>
+                    {finished ? <Chip tone={att.tone}>{att.label}</Chip> : "–"}
+                  </td>
                   <td className="px-3 py-2.5 tabular-nums">{a.age ?? "–"}</td>
                   <td className="px-3 py-2.5">{a.prior_exp ? EXP[a.prior_exp] : "–"}</td>
                   <td className="px-3 py-2.5">{a.device ?? "–"}</td>

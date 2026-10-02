@@ -39,6 +39,25 @@ Tipos de tarea: **S** secuenciar (elegir el programa completo), **C** completar 
 
 ---
 
+## Versión 0.3 (2026-10-02): completar y arreglar más evidentes
+
+Los chicos no terminaban de entender qué había que hacer en las misiones de completar y de arreglar, ni dónde actuaba su elección. Se probaron tres opciones de diseño (https://claude.ai/artifact/XENbQzfNy957dsTuRzK9m4). Se eligió la C para completar y la A para arreglar. El contenido de los ítems no cambió (mismos programas, opciones y respuesta correcta); cambió la presentación y la consigna.
+
+**Completar (C)**
+- El hueco es una pieza vacía enganchada en la pila, con la muesca donde encastra el bloque de arriba. Dice "? hueco" y late suave.
+- Las opciones van en un recuadro amarillo, "¿Cuál de estas piezas (condiciones) va en el hueco?", unido al hueco con una flecha.
+- Al elegir, la pieza encastra en el hueco con una animación corta y brilla en dorado.
+- Consigna: "Al programa le falta una pieza (condición). ¿Cuál va en el hueco para llegar a la base / dibujar la figura?". En A7.1: "A Paso le falta lo de adentro. ¿Cuál va en el hueco para dibujar la figura?".
+
+**Arreglar (D)**
+- Junto a la consigna, tres pasos: 1 Mirá dónde se choca (o Compará las dos figuras), 2 Buscá el bloque que está mal, 3 Elegí el cambio que lo arregla.
+- Los bloques del programa están numerados. Cada opción dice en qué bloque actúa ("En el bloque 2"), así que no hace falta buscar a qué parte del programa se refiere. La ubicación se calcula sola (`src/lib/fixes.ts`) y `npm run validate` verifica que exista.
+- Debajo del programa: "El programa tiene un solo error". Al elegir, el bloque cambiado brilla, su número se pinta de amarillo y debajo se ve "Cambiaste el bloque N. Antes era:" con el bloque viejo tachado.
+- Consigna: "El robot se choca: el programa tiene un error." / "Dibuja otra figura: el programa tiene un error." La pregunta queda en el paso 3.
+- En ningún caso se muestra al robot corriendo con la opción elegida: el chico podría probar las cuatro y la prueba dejaría de medir si sabe leer el programa. El efecto se ve sobre el programa, no sobre el mapa.
+
+---
+
 ## Versión 0.2 (2026-09-25): rediseño para que las misiones se entiendan a simple vista
 
 Revisión ítem por ítem pensando en chicos de 11 años con y sin experiencia previa. La fuente de verdad del contenido es `src/lib/items-a.ts` / `items-b.ts`; lo que sigue resume qué cambió respecto de las secciones de abajo.

@@ -1,10 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
 import { MapView } from "@/components/MapView";
-import { CondChip, diffRows, measureCondChip, measureProgram, PieceView, ProgramView, type BlockSize } from "@/components/ProgramView";
+import { blockNumbers, CondChip, diffRows, measureCondChip, measureProgram, PieceView, ProgramView, type BlockSize } from "@/components/ProgramView";
 import { Figure, OptionFigure } from "@/components/b/Figures";
 import type { Fail } from "@/lib/art";
+import { blocksLabel, fixRows } from "@/lib/fixes";
 import type { Block, Item, ItemA, ItemB, OptionA, Program, TaskA } from "@/lib/model";
 import { effectiveProgram, fillHole, simulate, simulateOption, type SimResult } from "@/lib/sim";
 
@@ -137,10 +138,59 @@ function ArrowRight() {
   );
 }
 
-/** Opción de arreglar: "cambiar [esto] por [esto]". */
-function FixContent({ opt, size }: { opt: Extract<OptionA, { kind: "fix" }>; size: BlockSize }) {
+type FixOpt = Extract<OptionA, { kind: "fix" }>;
+
+/** Números de los bloques del programa dado que cambia una opción de arreglar. */
+function fixNumbers(item: ItemA, opt: FixOpt): number[] {
+  if (!item.given) return [];
+  const rows = fixRows(item.given, opt.from);
+  if (!rows) return [];
+  const nums = blockNumbers(item.given);
+  return [...new Set(rows.map((r) => nums.get(r)).filter((n): n is number => n !== undefined))].sort((a, b) => a - b);
+}
+
+function NumBadge({ n, hot }: { n: number; hot?: boolean }) {
   return (
-    <div className="flex items-center gap-2" aria-label="cambiar por">
+    <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] font-bold ${hot ? "bg-[#F2B200] text-[#3A2600]" : "bg-[#E9EDF3] text-[#4A5568]"}`}>{n}</span>
+  );
+}
+
+/**
+ * Opción de arreglar: "en el bloque 2: cambiar [esto] por [esto]". La etiqueta del bloque va arriba si
+ * hay alto de sobra (piezas chicas) y a la izquierda si no (así las 4 opciones entran una debajo de otra).
+ */
+function FixContent({ item, opt, size, labelTop }: { item: ItemA; opt: FixOpt; size: BlockSize; labelTop?: boolean }) {
+  const nums = fixNumbers(item, opt);
+  if (labelTop)
+    return (
+      <div className="flex flex-col gap-1.5" aria-label={`${blocksLabel(nums)}: cambiar por`}>
+        {nums.length > 0 && (
+          <span className="flex items-center gap-1 text-[13px] font-semibold text-[#5B6477]">
+            {nums.length === 1 ? "En el bloque" : "En los bloques"}
+            {nums.map((n) => (
+              <NumBadge key={n} n={n} />
+            ))}
+          </span>
+        )}
+        <div className="flex items-center gap-2">
+          <PieceView blocks={opt.from} size={size} />
+          <ArrowRight />
+          <PieceView blocks={opt.to} size={size} />
+        </div>
+      </div>
+    );
+  return (
+    <div className="flex items-center gap-2" aria-label={`${blocksLabel(nums)}: cambiar por`}>
+      {nums.length > 0 && (
+        <span className="flex w-[62px] shrink-0 flex-col items-center gap-1 text-[12px] font-semibold text-[#5B6477]">
+          {nums.length === 1 ? "bloque" : "bloques"}
+          <span className="flex flex-wrap justify-center gap-0.5">
+            {nums.map((n) => (
+              <NumBadge key={n} n={n} />
+            ))}
+          </span>
+        </span>
+      )}
       <PieceView blocks={opt.from} size={size} />
       <ArrowRight />
       <PieceView blocks={opt.to} size={size} />
@@ -148,7 +198,7 @@ function FixContent({ opt, size }: { opt: Extract<OptionA, { kind: "fix" }>; siz
   );
 }
 
-function OptionContent({ item, opt, size }: { item: ItemA; opt: OptionA; size: BlockSize }) {
+function OptionContent({ item, opt, size, labelTop }: { item: ItemA; opt: OptionA; size: BlockSize; labelTop?: boolean }) {
   switch (opt.kind) {
     case "program":
       return <ProgramView program={opt.program} size={size} />;
@@ -159,11 +209,11 @@ function OptionContent({ item, opt, size }: { item: ItemA; opt: OptionA; size: B
     case "def":
       return <ProgramView program={{ defs: [{ name: opt.name, body: opt.body }], main: [] }} size={size} />;
     case "fix":
-      return <FixContent opt={opt} size={size} />;
+      return <FixContent item={item} opt={opt} size={size} labelTop={labelTop} />;
   }
 }
 
-function optionSize(item: ItemA, opt: OptionA): { w: number; h: number } {
+function optionSize(item: ItemA, opt: OptionA, labelTop = false): { w: number; h: number } {
   switch (opt.kind) {
     case "program":
       return measureProgram(opt.program, SIZE);
@@ -176,7 +226,7 @@ function optionSize(item: ItemA, opt: OptionA): { w: number; h: number } {
     case "fix": {
       const a = measureProgram({ main: opt.from }, SIZE);
       const b = measureProgram({ main: opt.to }, SIZE);
-      return { w: a.w + b.w + 46, h: Math.max(a.h, b.h) };
+      return labelTop ? { w: Math.max(a.w + b.w + 46, 150), h: Math.max(a.h, b.h) + 30 } : { w: a.w + b.w + 46 + 70, h: Math.max(a.h, b.h) };
     }
   }
 }
@@ -188,14 +238,55 @@ const NARROW_OPTION = 190;
  * Columnas de opciones: una lista si entran las 4 una debajo de otra; si son angostas (programas
  * de flechas, que ahora van una debajo de la otra), las 4 en fila; si no, 2 × 2; si igual no entran, 4 en fila.
  */
-function optionColumns(item: ItemA): { cols: 1 | 2 | 4; w: number } {
-  const sizes = item.options.map((o) => optionSize(item, o));
+function optionColumns(item: ItemA, availH = OPTIONS_H, labelTop = false, narrowSpace = false): { cols: 1 | 2 | 4; w: number } {
+  const sizes = item.options.map((o) => optionSize(item, o, labelTop));
   const hs = sizes.map((s) => s.h + OPT_PAD_H);
   const w = Math.max(...sizes.map((s) => s.w)) + 30;
-  if (hs.reduce((a, b) => a + b, 0) + 3 * OPT_GAP <= OPTIONS_H) return { cols: 1, w };
+  if (hs.reduce((a, b) => a + b, 0) + 3 * OPT_GAP <= availH) return { cols: 1, w };
+  // En la ventana de práctica (más angosta) conviene 2 × 2 antes que las 4 en fila.
+  if (narrowSpace && 2 * Math.max(...hs) + OPT_GAP <= availH) return { cols: 2, w };
   if (w <= NARROW_OPTION) return { cols: 4, w };
-  if (2 * Math.max(...hs) + OPT_GAP <= OPTIONS_H) return { cols: 2, w };
+  if (2 * Math.max(...hs) + OPT_GAP <= availH) return { cols: 2, w };
   return { cols: 4, w };
+}
+
+/** Alto que ocupa el título del recuadro de piezas (completar). */
+const PICKER_HEAD_H = 52;
+
+/** Arreglar: tres pasos cortos para saber qué hacer. */
+function FixSteps({ canvas }: { canvas: boolean }) {
+  const steps = [
+    { n: 1, bg: "#E0322B", fg: "#FFFFFF", text: canvas ? "Compará las dos figuras" : "Mirá dónde se choca" },
+    { n: 2, bg: "#F2B200", fg: "#3A2600", text: "Buscá el bloque que está mal" },
+    { n: 3, bg: "#176CE0", fg: "#FFFFFF", text: "Elegí el cambio que lo arregla" },
+  ];
+  return (
+    <ol className="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="Cómo resolverla">
+      {steps.map((st) => (
+        <li key={st.n} className="flex items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-[#EDE3CC] bg-white py-0.5 pl-0.5 pr-3 text-[14px] font-semibold text-[#1F2B45]">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-bold" style={{ background: st.bg, color: st.fg }}>
+            {st.n}
+          </span>
+          {st.text}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** Arreglar, con un cambio elegido: qué bloque cambió y cómo era antes. */
+function FixSummary({ item, opt }: { item: ItemA; opt: FixOpt }) {
+  const nums = fixNumbers(item, opt);
+  const label = blocksLabel(nums);
+  return (
+    <div className="mt-1.5 flex flex-col gap-1 rounded-xl bg-[#FFF6D6] px-3 py-2 text-[13px] font-semibold leading-snug text-[#6B4F00]" style={{ width: 0, minWidth: "100%", boxSizing: "border-box" }}>
+      <span>{label ? `Cambiaste ${nums.length === 1 ? "el" : "los"} ${label}. Antes era:` : "Antes era:"}</span>
+      <div className="relative self-start opacity-50" style={{ zoom: 0.8 }}>
+        <PieceView blocks={opt.from} size={SIZE} />
+        <span aria-hidden className="absolute left-0 right-0 top-1/2 h-[3px] -translate-y-1/2 -rotate-6 rounded bg-[#E0322B]" />
+      </div>
+    </div>
+  );
 }
 
 function ReviewBadge({ r }: { r: SimResult }) {
@@ -262,17 +353,66 @@ function MapPanel({ item, review, showCoords, mapReserve = MAP_RESERVE }: { item
   );
 }
 
-function ProgramPanel({ item, selected }: { item: ItemA; selected: number | null }) {
+function ProgramPanel({ item, selected, panelRef }: { item: ItemA; selected: number | null; panelRef?: Ref<HTMLDivElement> }) {
   const opt = selected === null ? null : item.options[selected];
   const p = preview(item, opt);
   if (!p) return null;
   const chosen = !!p.picked && p.picked.size > 0;
+  const fix = item.task === "D";
   return (
-    <div className={`${CARD} shrink-0 self-start px-3 pb-2 pt-2.5 ${chosen ? "ring-[#F5C542]" : ""}`}>
-      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5B6477]">{panelLabel(item, chosen)}</div>
-      <ProgramView program={p.program} picked={p.picked} size={SIZE} />
+    <div ref={panelRef} className={`${CARD} shrink-0 self-start px-3 pb-2.5 pt-2.5 ${chosen ? "ring-[#F5C542]" : ""}`}>
+      {/* El título no ensancha el panel: se acomoda al ancho del programa. */}
+      <div className="mb-2 text-xs font-bold uppercase leading-snug tracking-wide text-[#5B6477]" style={{ width: 0, minWidth: "100%" }}>
+        {panelLabel(item, chosen)}
+      </div>
+      {/* La clave cambia con la opción: así la pieza nueva vuelve a encastrar con su animación. */}
+      <ProgramView key={selected ?? "nada"} program={p.program} picked={p.picked} numbered={fix} hot={fix ? p.picked : undefined} size={SIZE} />
+      {fix &&
+        (chosen && opt?.kind === "fix" ? (
+          <FixSummary item={item} opt={opt} />
+        ) : (
+          <p className="m-0 mt-1.5 rounded-lg bg-[#FDE3E1] px-2.5 py-1.5 text-[13px] font-semibold leading-snug text-[#B42318]" style={{ width: 0, minWidth: "100%", boxSizing: "border-box" }}>
+            El programa tiene un solo error.
+          </p>
+        ))}
     </div>
   );
+}
+
+/** Completar: flecha que une el recuadro de piezas con el hueco (o con la pieza ya encastrada). */
+function useHoleLink(rowRef: RefObject<HTMLDivElement | null>, panelRef: RefObject<HTMLDivElement | null>, boxRef: RefObject<HTMLDivElement | null>, deps: unknown[]) {
+  const [d, setD] = useState<{ line: string; head: string } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const row = rowRef.current;
+      const panel = panelRef.current;
+      const box = boxRef.current;
+      const target = panel?.querySelector("[data-hole]") ?? panel?.querySelector("[data-picked]");
+      if (!row || !box || !target) return setD(null);
+      const r = row.getBoundingClientRect();
+      const t = target.getBoundingClientRect();
+      const b = box.getBoundingClientRect();
+      const x1 = t.right - r.left + 6;
+      const y1 = t.top + t.height / 2 - r.top;
+      const x2 = b.left - r.left - 2;
+      if (x2 < x1 + 28) return setD(null); // las piezas quedaron abajo (pantalla angosta): sin flecha
+      const y2 = Math.min(Math.max(y1, b.top - r.top + 26), b.bottom - r.top - 26);
+      const mid = Math.max(x1 + 14, x2 - 20);
+      setD({ line: `M ${x2} ${y2} H ${mid} V ${y1} H ${x1 + 4}`, head: `M ${x1 + 14} ${y1 - 8} L ${x1 + 4} ${y1} L ${x1 + 14} ${y1 + 8}` });
+    };
+    measure();
+    const late = window.setTimeout(measure, 400); // después de la animación de encastre
+    const ro = new ResizeObserver(measure);
+    for (const el of [rowRef.current, panelRef.current, boxRef.current]) if (el) ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.clearTimeout(late);
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return d;
 }
 
 // ───────── Ítem ─────────
@@ -318,22 +458,50 @@ function ReviewHeader({ item, index, total }: { item: Item; index: number; total
   );
 }
 
-function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords, mapReserve }: Props & { item: ItemA }) {
+function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords, mapReserve = MAP_RESERVE }: Props & { item: ItemA }) {
   const displayOrder = order ?? item.options.map((_, i) => i);
   const results = review ? item.options.map((o) => simulateOption(item, o)) : null;
-  const { cols, w } = optionColumns(item);
+  const picker = item.task === "C" && !!item.given;
+  const fix = item.task === "D";
+  // Dentro de la ventana de práctica hay menos alto: se descuenta lo que se reserva de más para el mapa.
+  const availH = OPTIONS_H - Math.max(0, mapReserve - MAP_RESERVE) - (picker ? PICKER_HEAD_H : 0);
+  const narrowSpace = mapReserve > MAP_RESERVE;
+  const labelTop = fix && optionColumns(item, availH, true, narrowSpace).cols === 1;
+  const { cols, w } = optionColumns(item, availH, labelTop, narrowSpace);
   const gridCols = cols;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const link = useHoleLink(rowRef, panelRef, boxRef, [item.id, selected, picker]);
+  const pickerTitle = item.options.every((o) => o.kind === "cond") ? "¿Cuál de estas condiciones va en el hueco?" : "¿Cuál de estas piezas va en el hueco?";
 
   return (
     <section className="flex flex-col gap-3">
       {review && <ReviewHeader item={item} index={index} total={total} />}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <TaskPill task={item.task} />
         <p className="text-xl font-semibold leading-snug text-[#1F2B45]">{item.prompt}</p>
+        {fix && (
+          <div className="ml-auto">
+            <FixSteps canvas={item.map.kind === "canvas"} />
+          </div>
+        )}
       </div>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-center">
+      <div ref={rowRef} className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-center-safe">
         <MapPanel item={item} review={review} showCoords={showCoords} mapReserve={mapReserve} />
-        <ProgramPanel item={item} selected={review ? null : selected} />
+        <ProgramPanel item={item} selected={review ? null : selected} panelRef={panelRef} />
+        {picker && link && (
+          <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full overflow-visible" aria-hidden>
+            <path d={link.line} fill="none" stroke="#F2B200" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+            <path d={link.head} fill="none" stroke="#F2B200" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+        <div ref={boxRef} className={picker ? "shrink-0 rounded-2xl border-[3px] border-[#F5D06A] bg-[#FFFBEA] px-3 pb-3 pt-2.5 lg:ml-6" : "contents"}>
+          {picker && (
+            <div className="mb-3 text-[15px] font-bold leading-snug text-[#6B4F00]" style={{ width: 0, minWidth: "100%" }}>
+              {pickerTitle}
+            </div>
+          )}
         <div
           className="grid shrink-0 gap-x-3 gap-y-2.5"
           style={{ gridTemplateColumns: gridCols === 1 ? `minmax(0, ${Math.max(w, 150)}px)` : `repeat(${gridCols}, minmax(86px, max-content))` }}
@@ -351,11 +519,12 @@ function ItemAView({ item, index, total, selected, onSelect, order, review, show
                 className={`relative flex flex-col items-start px-3 pb-1 pt-3 ${OPT_BASE} ${isSel ? OPT_SEL : OPT_IDLE} ${review && optIdx === item.correct ? "border-green-500" : ""}`}
               >
                 <Letter pos={pos} selected={isSel} corner />
-                <OptionContent item={item} opt={opt} size={SIZE} />
+                <OptionContent item={item} opt={opt} size={SIZE} labelTop={labelTop} />
                 {results && <ReviewBadge r={results[optIdx]} />}
               </button>
             );
           })}
+        </div>
         </div>
       </div>
       {review && item.notes && <p className="text-sm text-slate-500">Nota: {item.notes}</p>}

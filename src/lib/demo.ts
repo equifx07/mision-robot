@@ -2,7 +2,7 @@
 // para ver el panel con datos. Se marcan con device = "demo" para poder borrarlas de una vez.
 import { getDb } from "./db";
 import { ITEMS } from "./items";
-import { createAttempt, finishAttempt, listSchools, saveAnswer } from "./repo";
+import { createAttempt, finishAttempt, listSchools, saveAnswer, TIME_LIMIT_MS } from "./repo";
 
 export const DEMO_DEVICE = "demo";
 
@@ -42,6 +42,10 @@ function schoolDay(): Date {
   return new Date(Date.now() - 86400000);
 }
 
+// Misiones que en la demo son más difíciles o más fáciles que su lugar en la prueba (inventado, para
+// que el panel muestre misiones fuera de la línea).
+const DEMO_BUMP: Record<string, number> = { "A5.2": 1.1, B6: 0.9, "A3.1": -0.7 };
+
 export type DemoOptions = {
   schoolId: number;
   perCourse: number;
@@ -74,19 +78,37 @@ export function generateDemo(opts: DemoOptions): { created: number; courses: str
         userAgent: "generador de datos de prueba",
         screen: "1366x768",
       });
+      // Ritmo propio (algunos muy lentos, que no llegan a terminar) y, en algunos, cansancio desde una misión:
+      // a partir de ahí contestan cada vez más seguido apurados, sin leer.
+      const pace = Math.random() < 0.06 ? 2.1 + Math.random() * 0.5 : Math.exp(gauss() * 0.25);
+      const tiresAt = Math.random() < 0.18 ? 13 + Math.floor(Math.random() * 12) : Infinity;
+      const tutorialMs = Math.round((6 + Math.random() * 6) * 60000);
       let totalItemMs = 0;
+      let timedOut = false;
       ITEMS.forEach((item, idx) => {
-        const difficulty = item.part === "A" ? -1.2 + (idx / 19) * 2.6 : 0.2 + gauss() * 0.3;
-        const pCorrect = 0.25 + 0.75 * sigmoid(1.4 * (ability - difficulty));
-        const correct = Math.random() < pCorrect;
-        const chosen = correct ? item.correct : pick([1, 2, 3]);
-        const timeMs = Math.max(5000, Math.round((28 + idx * 1.6 + gauss() * 14) * 1000));
+        if (timedOut) return;
+        const difficulty = (item.part === "A" ? -1.2 + (idx / 19) * 2.6 : 0.2 + gauss() * 0.3) + (DEMO_BUMP[item.id] ?? 0);
+        const rushed = idx >= tiresAt && Math.random() < Math.min(0.8, 0.35 + 0.06 * (idx - tiresAt));
+        let correct: boolean;
+        let timeMs: number;
+        if (rushed) {
+          correct = Math.random() < 0.25;
+          timeMs = Math.round((1.2 + Math.random() * 2.6) * 1000);
+        } else {
+          correct = Math.random() < 0.25 + 0.75 * sigmoid(1.4 * (ability - difficulty));
+          const base = item.part === "A" ? 24 + 14 * (difficulty + 1.2) : 44;
+          timeMs = Math.round(Math.max(6, base * pace * Math.exp(gauss() * 0.35) * (correct ? 1 : 1.15)) * 1000);
+        }
+        if (tutorialMs + totalItemMs + timeMs > TIME_LIMIT_MS) {
+          timedOut = true;
+          return;
+        }
         totalItemMs += timeMs;
-        saveAnswer(attempt.id, item.id, chosen, timeMs, null, null);
+        saveAnswer(attempt.id, item.id, correct ? item.correct : pick([1, 2, 3]), timeMs, null, null);
       });
-      finishAttempt(attempt.id);
+      finishAttempt(attempt.id, timedOut ? "timed_out" : "finished");
       const started = schoolDay();
-      const durationMs = totalItemMs + Math.round((6 + Math.random() * 6) * 60000); // + tutorial y prácticas
+      const durationMs = timedOut ? TIME_LIMIT_MS : totalItemMs + tutorialMs; // + tutorial y prácticas
       const finished = new Date(started.getTime() + durationMs);
       db.prepare("UPDATE attempts SET started_at = ?, finished_at = ?, total_ms = ? WHERE id = ?").run(
         started.toISOString(),

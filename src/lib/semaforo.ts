@@ -131,3 +131,31 @@ export function itemStatus(p: number, rpb: number): { tone: Tone; label: string 
 
 /** Por debajo de esta cantidad de chicos, los indicadores son orientativos. */
 export const FEW_DATA = 30;
+
+// ───────── Respuestas apuradas (menos es mejor) ─────────
+
+export function rushTone(v: number): Tone {
+  if (!Number.isFinite(v)) return "neutro";
+  return v < 0.03 ? "muybien" : v < 0.06 ? "bien" : v < 0.1 ? "intermedio" : v < 0.15 ? "regular" : v < 0.25 ? "bajo" : "critico";
+}
+export const RUSH_SCALE: { tone: Tone; range: string }[] = [
+  { tone: "muybien", range: "menos de 3%" },
+  { tone: "bien", range: "3 a 5%" },
+  { tone: "intermedio", range: "6 a 9%" },
+  { tone: "regular", range: "10 a 14%" },
+  { tone: "bajo", range: "15 a 24%" },
+  { tone: "critico", range: "25% o más" },
+];
+
+// ───────── Tiempos (no son ni buenos ni malos: escala neutra, más oscuro = más tiempo) ─────────
+
+export const TIME_BINS: { max: number; fill: string; text: string; label: string }[] = [
+  { max: 20, fill: "#F1EFEA", text: "#22211F", label: "menos de 20 s" },
+  { max: 40, fill: "#DCD7CC", text: "#22211F", label: "20 a 39 s" },
+  { max: 60, fill: "#B9B2A4", text: "#22211F", label: "40 a 59 s" },
+  { max: 90, fill: "#7D766A", text: "#FFFFFF", label: "60 a 89 s" },
+  { max: Infinity, fill: "#4A453E", text: "#FFFFFF", label: "90 s o más" },
+];
+export function timeBin(seconds: number) {
+  return TIME_BINS.find((b) => seconds < b.max) ?? TIME_BINS[TIME_BINS.length - 1];
+}

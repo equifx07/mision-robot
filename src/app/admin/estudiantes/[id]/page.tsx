@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { ITEMS } from "@/lib/items";
 import { getAnswers, getAttempt, listSchools } from "@/lib/repo";
-import { dimensionOf, fmt, levelOf, MAX_SCORE } from "@/lib/stats";
+import { attentionStatus, isRapid, loadReference, SIGNAL, SIGNAL_LABEL, studentSignals, type SignalKey } from "@/lib/patrones";
+import { dimensionOf, fmt, levelOf, MAX_SCORE, scoreAttempts } from "@/lib/stats";
 import { TASK_NAME } from "@/lib/insights";
 import { LEVEL_TONE } from "@/lib/semaforo";
 import { Chip, HEADING } from "@/components/admin/ui";
@@ -28,6 +29,26 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
   const course = school?.courses.find((c) => c.id === attempt.course_id);
   const total = answers.filter((a) => a.is_correct === 1).length;
   const finished = attempt.status !== "in_progress";
+  const ref = loadReference();
+  const [scored] = scoreAttempts([{ ...attempt, school_name: school?.name ?? "", course_name: course?.name ?? "" }], answers);
+  const sig = studentSignals(scored, ref);
+  const att = attentionStatus(sig.signals.length);
+  const times = (x: number) => (x >= 3 ? fmt(x, 0) : fmt(x, 1).replace(",0", ""));
+  const detail: Record<SignalKey, string> = {
+    apuro: sig.rushed
+      ? `${sig.rushed} ${sig.rushed === 1 ? "respuesta apurada" : "respuestas apuradas"}: ${sig.rushedIds.join(", ")}. Cuenta como señal desde ${SIGNAL.rushed}.`
+      : "Ninguna respuesta apurada.",
+    caida: !Number.isFinite(sig.drop)
+      ? "Faltan respuestas para calcularlo."
+      : sig.drop > 0
+        ? `Comparado con el resto, al final le fue ${Math.round(sig.drop * 100)} puntos peor que al principio. Cuenta como señal desde ${Math.round(SIGNAL.drop * 100)}.`
+        : "Comparado con el resto, al final le fue igual o mejor que al principio.",
+    acelero: !Number.isFinite(sig.speed)
+      ? "Faltan respuestas para calcularlo."
+      : sig.speed < 1
+        ? `Al final fue ${times(1 / sig.speed)} veces más rápido que al principio, comparado con el tiempo típico de cada misión. Cuenta como señal desde 2 veces.`
+        : "Al final no se apuró: fue a su ritmo o más lento.",
+  };
 
   const rows = ITEMS.map((item, i) => {
     const a = byItem.get(item.id);
@@ -40,6 +61,8 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
       chosen: a?.chosen ?? null,
       correct: a ? a.is_correct === 1 : null,
       timeS: a?.time_ms ? a.time_ms / 1000 : null,
+      typicalS: Number.isFinite(ref.medianMs[item.id]) ? ref.medianMs[item.id] / 1000 : null,
+      rushed: a?.chosen !== null && a?.chosen !== undefined && isRapid(ref, item.id, a.time_ms && a.time_ms > 0 ? a.time_ms : null),
       order: attempt.option_orders[item.id],
     };
   });
@@ -83,6 +106,32 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
       <p className="m-0 text-xs text-[#6B665E]">
         Dispositivo: {attempt.device ?? "–"} · pantalla {attempt.screen ?? "–"} · versión de la prueba {attempt.test_version}
       </p>
+
+      {finished && (
+        <section aria-labelledby="atencion" className="flex flex-col gap-3 rounded-[20px] border border-[#E5E1D8] bg-white p-5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 id="atencion" className={`${HEADING} m-0 text-xl font-semibold`}>
+              Señales de atención
+            </h2>
+            <Chip tone={att.tone}>{att.label}</Chip>
+            <span className="text-[13px] text-[#6B665E]">Una sola señal puede ser casualidad; varias juntas sugieren que el puntaje es menor que lo que sabe.</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {(["apuro", "caida", "acelero"] as const).map((k) => {
+              const on = sig.signals.includes(k);
+              return (
+                <div key={k} className={`flex flex-col gap-1 rounded-2xl px-4 py-3 ${on ? "bg-[#FADBD6]" : "bg-[#F6F4EF]"}`}>
+                  <span className={`text-sm font-bold ${on ? "text-[#9B2019]" : "text-[#22211F]"}`}>
+                    {on ? "⚠ " : "✓ "}
+                    {SIGNAL_LABEL[k]}
+                  </span>
+                  <span className="text-[13px] leading-snug text-[#3D3A35]">{detail[k]}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <AnswerReview rows={rows} />
     </div>

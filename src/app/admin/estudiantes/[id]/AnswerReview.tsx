@@ -12,6 +12,8 @@ type Row = {
   chosen: number | null;
   correct: boolean | null;
   timeS: number | null;
+  typicalS: number | null;
+  rushed: boolean;
   order?: number[];
 };
 
@@ -52,7 +54,17 @@ export function AnswerReview({ rows }: { rows: Row[] }) {
                       <span className="rounded-full bg-[#FADBD6] px-2 py-0.5 text-xs font-bold text-[#9B2019]">✗ incorrecta</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 tabular-nums">{r.timeS !== null ? `${r.timeS.toFixed(0)} s` : "–"}</td>
+                  <td className="px-3 py-2 tabular-nums">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      {r.timeS !== null ? `${r.timeS.toFixed(0)} s` : "–"}
+                      {r.rushed && (
+                        <span className="rounded-full bg-[#FDE4CC] px-2 py-0.5 text-xs font-bold text-[#8A430C]" title="Contestó en menos de la décima parte del tiempo típico: no alcanza para leerla">
+                          apurada
+                        </span>
+                      )}
+                    </span>
+                    {r.typicalS !== null && <span className="block text-xs text-[#8F897F]">típico {r.typicalS.toFixed(0)} s</span>}
+                  </td>
                   <td className="px-3 py-2 text-right">
                     <button type="button" onClick={() => setOpen(isOpen ? null : r.item.id)} className="text-xs font-semibold text-[#22211F] underline underline-offset-2">
                       {isOpen ? "ocultar" : "ver ítem"}

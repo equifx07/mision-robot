@@ -13,14 +13,14 @@ export default async function ExportPage() {
       </div>
       <section className="rounded-[20px] border border-[#E5E1D8] bg-white p-5">
         <h2 className="m-0 text-lg font-bold">Estudiantes (una fila por prueba)</h2>
-        <p className="mb-3 mt-1 text-sm text-[#55504A]">Datos del estudiante, puntaje total y por parte, acierto por concepto y práctica, nivel, tiempos y dispositivo.</p>
+        <p className="mb-3 mt-1 text-sm text-[#55504A]">Datos del estudiante, puntaje total y por parte, acierto por concepto y práctica, nivel, tiempo total y resolviendo misiones, señales de atención (respuestas apuradas, caída y ritmo al final) y dispositivo.</p>
         <a className={link} href="/api/admin/export?tipo=estudiantes">
           Descargar estudiantes.csv
         </a>
       </section>
       <section className="rounded-[20px] border border-[#E5E1D8] bg-white p-5">
         <h2 className="m-0 text-lg font-bold">Respuestas (una fila por estudiante e ítem)</h2>
-        <p className="mb-3 mt-1 text-sm text-[#55504A]">Formato largo para análisis estadístico: ítem, dimensión, tarea, opción elegida, acierto y tiempo.</p>
+        <p className="mb-3 mt-1 text-sm text-[#55504A]">Formato largo para análisis estadístico: ítem, posición, dimensión, tarea, opción elegida, acierto, tiempo, tiempo típico de la misión y si la respuesta fue apurada.</p>
         <a className={link} href="/api/admin/export?tipo=respuestas">
           Descargar respuestas.csv
         </a>

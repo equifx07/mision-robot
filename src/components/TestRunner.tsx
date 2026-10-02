@@ -23,6 +23,28 @@ type Phase =
 
 type AttemptState = { studentName: string; startedAt: string; optionOrders: Record<string, number[]> };
 
+/**
+ * Momento en que apareció la misión actual. Se guarda en el navegador para que, si el chico recarga
+ * la página, el tiempo de la misión siga contando desde la primera vez que la vio (y no vuelva a cero).
+ */
+type Shown = { item: string; at: number; iso: string };
+const shownKey = (attemptId: string) => `mision-robot-shown:${attemptId}`;
+function rememberShown(attemptId: string, item: string): Shown {
+  try {
+    const prev = JSON.parse(localStorage.getItem(shownKey(attemptId)) ?? "null") as Shown | null;
+    if (prev && prev.item === item && Number.isFinite(prev.at) && prev.at <= Date.now()) return prev;
+  } catch {
+    /* sin localStorage o dato roto */
+  }
+  const now: Shown = { item, at: Date.now(), iso: new Date().toISOString() };
+  try {
+    localStorage.setItem(shownKey(attemptId), JSON.stringify(now));
+  } catch {
+    /* sin localStorage */
+  }
+  return now;
+}
+
 export function TestRunner({ attemptId }: { attemptId: string }) {
   const [attempt, setAttempt] = useState<AttemptState | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
@@ -31,8 +53,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number>(TIME_LIMIT_MS);
-  const shownPerf = useRef<number>(0);
-  const shownAt = useRef<string>("");
+  const shown = useRef<Shown | null>(null);
   const finishing = useRef(false);
 
   const finish = useCallback(
@@ -49,6 +70,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       }
       try {
         localStorage.removeItem(ATTEMPT_KEY);
+        localStorage.removeItem(shownKey(attemptId));
       } catch {
         /* sin localStorage */
       }
@@ -69,12 +91,11 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       }
       setSelected(null);
       setSaveError(null);
-      shownPerf.current = performance.now();
-      shownAt.current = new Date().toISOString();
+      shown.current = rememberShown(attemptId, item.id);
       setPhase({ kind: "item", itemIndex: index });
       window.scrollTo({ top: 0 });
     },
-    [finish],
+    [finish, attemptId],
   );
 
   // Carga inicial del intento
@@ -144,8 +165,8 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
         body: JSON.stringify({
           itemId: item.id,
           chosen: selected,
-          timeMs: Math.round(performance.now() - shownPerf.current),
-          shownAt: shownAt.current,
+          timeMs: shown.current ? Math.max(0, Date.now() - shown.current.at) : null,
+          shownAt: shown.current?.iso ?? null,
         }),
       });
       if (res.status === 409) {

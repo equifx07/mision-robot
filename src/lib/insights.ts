@@ -2,7 +2,8 @@
 // están mostrando (cambian con los filtros). Cada función recibe lo mismo que su gráfico.
 import type { SchoolGroup } from "./dashboard";
 import { dSize, FEW_DATA, itemStatus } from "./semaforo";
-import { cohenD, DIMENSIONS, fmt, type GroupSummary, type ItemStats, LEVELS, levelOfMean, pct } from "./stats";
+import type { ItemPattern, TimeStats } from "./patrones";
+import { cohenD, DIMENSIONS, fmt, type GroupSummary, type ItemStats, LEVELS, levelOfMean, median, pct } from "./stats";
 
 export const TASK_NAME: Record<string, string> = { S: "Elegir el programa", C: "Completar un hueco", D: "Arreglar un error", E: "Comparar programas" };
 const TASK_SHORT: Record<string, string> = { S: "elegir", C: "completar", D: "arreglar", E: "comparar" };
@@ -223,4 +224,146 @@ export function highlights(s: GroupSummary, groups: SchoolGroup[], items: ItemSt
       : { tone: "bien", badge: "Prueba", text: "Todas las misiones separan bien o aceptablemente a los chicos.", href: "/admin/items", cta: "Ver calidad de las misiones" },
   );
   return out;
+}
+
+// ───────── Errores y atención ─────────
+
+const pts = (x: number) => `${Math.round(x * 100)} ${Math.round(x * 100) === 1 ? "punto" : "puntos"}`;
+
+export function errorsInsight(patterns: ItemPattern[], n: number): string {
+  const valid = patterns.filter((p) => Number.isFinite(p.err) && p.diagnosis.key !== "sin-datos");
+  if (!valid.length) return "";
+  const top = [...valid].sort((a, b) => b.err - a.err).slice(0, 3);
+  const parts = [`Donde más se equivocan: ${list(top.map((p) => `${p.id} (${pct(p.err)})`))}.`];
+  const hard = valid.filter((p) => p.diagnosis.key === "dificil").sort((a, b) => b.jump - a.jump);
+  const rush = valid.filter((p) => p.diagnosis.key === "apuro");
+  if (hard.length)
+    parts.push(
+      hard.length === 1
+        ? `${hard[0].id} no sigue la línea: tiene ${pts(hard[0].jump)} más de errores que sus vecinas, aun entre los que se tomaron su tiempo. Es más difícil de lo que le toca por su lugar.`
+        : `${list(hard.map((p) => p.id))} no siguen la línea: tienen ${list(hard.map((p) => pts(p.jump)))} más de errores que sus vecinas, aun entre los que se tomaron su tiempo. Son más difíciles de lo que les toca por su lugar.`,
+    );
+  if (rush.length) parts.push(`En ${list(rush.map((p) => p.id))} los errores se explican sobre todo por respuestas apuradas: es más falta de atención que dificultad.`);
+  const lineTop = top.filter((p) => p.diagnosis.key === "linea");
+  if (lineTop.length)
+    parts.push(
+      lineTop.length === 1
+        ? `${lineTop[0].id} sigue la línea: cuesta porque la prueba se pone más difícil a medida que avanza.`
+        : `${list(lineTop.map((p) => p.id))} siguen la línea: cuestan porque la prueba se pone más difícil a medida que avanza.`,
+    );
+  if (!hard.length && !rush.length) parts.push("Ninguna misión se sale de la línea: los errores crecen de a poco, como se esperaba.");
+  if (n < FEW_DATA) parts.push(`Con ${chicos(n)}, el diagnóstico es orientativo.`);
+  return parts.join(" ");
+}
+
+export function thinkingInsight(patterns: ItemPattern[]): string {
+  const wrong = patterns.reduce((a, p) => a + p.wrongCareful, 0);
+  const rushedWrong = patterns.reduce((a, p) => a + (p.rushed - p.rushedRight), 0);
+  const total = wrong + rushedWrong;
+  if (!total) return "";
+  const parts = [`De todos los errores, ${pct(wrong / total)} fueron con tiempo normal (se equivocaron pensando) y ${pct(rushedWrong / total)} fueron respuestas apuradas.`];
+  const worstRush = [...patterns].filter((p) => p.reached >= 5).sort((a, b) => b.rushedShare - a.rushedShare)[0];
+  if (worstRush && worstRush.rushedShare >= 0.1) parts.push(`La misión con más apuro es ${worstRush.id}: ${pct(worstRush.rushedShare)} la contestó sin llegar a leerla.`);
+  const noReach = patterns.filter((p) => p.n && p.noReach / p.n >= 0.1);
+  if (noReach.length) {
+    const most = Math.max(...noReach.map((p) => p.noReach / p.n));
+    parts.push(`${list(noReach.map((p) => p.id))} ${noReach.length === 1 ? "tiene" : "tienen"} chicos que no llegaron porque se terminó el tiempo (hasta ${pct(most)}).`);
+  }
+  return parts.join(" ");
+}
+
+export function fatigueInsight(thirds: { share: number }[], acc: { rushed: number; right: number }, bySchool: { name: string; final: number }[]): string {
+  if (!thirds.every((t) => Number.isFinite(t.share))) return "";
+  const [a, , c] = thirds;
+  const parts = [`Al principio, ${pct(a.share)} de las respuestas fueron apuradas; al final, ${pct(c.share)}.`];
+  parts.push(
+    c.share >= a.share + 0.04
+      ? "El apuro crece hacia el final: hay chicos que llegan cansados o desatentos a las últimas misiones."
+      : "El apuro casi no cambia a lo largo de la prueba: no se ve cansancio al final.",
+  );
+  if (acc.rushed >= 10) {
+    const r = acc.right / acc.rushed;
+    parts.push(`Las respuestas apuradas acertaron ${pct(r)}${r < 0.4 ? ", casi como al azar (25%): son chicos que contestan sin leer, no chicos que saben y van rápido" : ""}.`);
+  }
+  const valid = bySchool.filter((s) => Number.isFinite(s.final));
+  if (valid.length > 1) {
+    const worst = [...valid].sort((x, y) => y.final - x.final)[0];
+    const best = [...valid].sort((x, y) => x.final - y.final)[0];
+    if (worst.final - best.final >= 0.05) parts.push(`Al final, ${worst.name} es el colegio con más apuro (${pct(worst.final)}) y ${best.name} el de menos (${pct(best.final)}).`);
+  }
+  return parts.join(" ");
+}
+
+export function signalsInsight(rows: { name: string; n: number; many: number }[], total: { n: number; many: number; one: number }): string {
+  if (!total.n) return "";
+  const parts = [
+    total.many
+      ? `${total.many} de ${total.n} chicos (${pct(total.many / total.n)}) muestran varias señales de desatención: su puntaje probablemente es menor que lo que saben.`
+      : "Ningún chico muestra varias señales de desatención.",
+  ];
+  if (total.one) parts.push(`${total.one === 1 ? "1 chico muestra" : `${total.one} chicos muestran`} una sola señal, que puede ser casualidad.`);
+  const withMany = rows.filter((r) => r.many > 0).sort((a, b) => b.many / b.n - a.many / a.n);
+  if (rows.length > 1 && withMany.length) parts.push(`Por colegio: ${list(withMany.map((r) => `${r.name}, ${r.many} de ${r.n}`))}.`);
+  return parts.join(" ");
+}
+
+// ───────── Tiempos ─────────
+
+type TimeGroup = { name: string; n: number; total: TimeStats; missions: TimeStats; timedOut: number };
+
+export function totalTimeInsight(all: TimeGroup, bySchool: TimeGroup[]): string {
+  if (!all.total.n) return "";
+  const parts = [
+    `El chico típico tardó ${fmt(all.total.median, 0)} minutos en toda la prueba; la mitad central, de ${fmt(all.total.q1, 0)} a ${fmt(all.total.q3, 0)}.`,
+    `Resolviendo misiones, ${fmt(all.missions.median, 0)} minutos: el resto se va en la explicación y las prácticas.`,
+    all.timedOut ? `${all.timedOut} de ${all.n} (${pct(all.timedOut / all.n)}) se ${all.timedOut === 1 ? "quedó" : "quedaron"} sin tiempo.` : "Todos terminaron antes de los 45 minutos.",
+  ];
+  const valid = bySchool.filter((s) => s.total.n >= 2);
+  if (valid.length > 1) {
+    const slow = [...valid].sort((a, b) => b.total.median - a.total.median)[0];
+    const fast = [...valid].sort((a, b) => a.total.median - b.total.median)[0];
+    if (slow.total.median - fast.total.median >= 3) parts.push(`${slow.name} es el más lento (${fmt(slow.total.median, 0)} min) y ${fast.name} el más rápido (${fmt(fast.total.median, 0)} min).`);
+    const out = valid.filter((s) => s.timedOut > 0).sort((a, b) => b.timedOut / b.n - a.timedOut / a.n);
+    if (out.length && all.timedOut > 1) parts.push(`Los que no terminaron son de ${list(out.map((s) => `${s.name} (${s.timedOut})`))}.`);
+  }
+  return parts.join(" ");
+}
+
+export function itemTimeInsight(times: { id: string; all: TimeStats }[]): string {
+  const valid = times.filter((t) => Number.isFinite(t.all.median));
+  if (!valid.length) return "";
+  const sorted = [...valid].sort((a, b) => b.all.median - a.all.median);
+  const slow = sorted.slice(0, 3);
+  const fast = sorted.slice(-2).reverse();
+  const a = valid.filter((t) => t.id.startsWith("A")).map((t) => t.all.median);
+  const b = valid.filter((t) => t.id.startsWith("B")).map((t) => t.all.median);
+  const parts = [`Las misiones que más tiempo llevan son ${list(slow.map((t) => `${t.id} (${fmt(t.all.median, 0)} s)`))}; las más rápidas, ${list(fast.map((t) => `${t.id} (${fmt(t.all.median, 0)} s)`))}.`];
+  if (a.length && b.length) parts.push(`En la Parte A, una misión típica lleva ${fmt(median(a), 0)} s; en la Parte B, ${fmt(median(b), 0)} s.`);
+  return parts.join(" ");
+}
+
+export function schoolTimeInsight(rows: { name: string; values: number[] }[], all: number[]): string {
+  if (rows.length < 2) return rows.length ? "Con un solo colegio no hay con quién comparar. Sacá el filtro de colegio." : "";
+  const count = (r: { values: number[] }, f: (v: number, ref: number) => boolean) => r.values.filter((v, i) => Number.isFinite(v) && Number.isFinite(all[i]) && f(v, all[i])).length;
+  const slower = rows.map((r) => ({ name: r.name, k: count(r, (v, ref) => v > ref * 1.1) })).sort((a, b) => b.k - a.k)[0];
+  const faster = rows.map((r) => ({ name: r.name, k: count(r, (v, ref) => v < ref * 0.9) })).sort((a, b) => b.k - a.k)[0];
+  const parts: string[] = [];
+  if (slower.k >= 5) parts.push(`${slower.name} tarda más que el total en ${slower.k} de las ${all.length} misiones.`);
+  if (faster.k >= 5 && faster.name !== slower.name) parts.push(`${faster.name} es más rápido que el total en ${faster.k}.`);
+  if (!parts.length) parts.push("Los colegios tardan parecido en casi todas las misiones.");
+  return parts.join(" ");
+}
+
+export function rightWrongInsight(times: { id: string; right: number; wrong: number }[]): string {
+  const both = times.filter((t) => Number.isFinite(t.right) && Number.isFinite(t.wrong));
+  if (!both.length) return "";
+  const slowerWrong = both.filter((t) => t.wrong > t.right * 1.15);
+  const fasterWrong = both.filter((t) => t.wrong < t.right * 0.85);
+  const parts = [`En ${slowerWrong.length} de ${both.length} misiones los que se equivocaron tardaron más que los que acertaron: se trabaron, la misión les costó.`];
+  parts.push(
+    fasterWrong.length
+      ? `En ${list(fasterWrong.map((t) => t.id))} los que se equivocaron fueron más rápidos: la contestaron sin pensarla del todo.`
+      : "En ninguna los que se equivocaron fueron claramente más rápidos.",
+  );
+  return parts.join(" ");
 }

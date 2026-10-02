@@ -10,6 +10,9 @@ const RULES: { name: string; where: string; cells: string[] }[] = [
   { name: "Porcentaje de acierto", where: "Conceptos, prácticas, tareas y misiones", cells: ["menos de 30%", "30 a 44%", "45 a 59%", "60 a 74%", "75 a 89%", "90% o más"] },
   { name: "Cuánto separa una misión", where: "Discriminación, en Calidad de las misiones", cells: ["negativa", "0 a 0,19", "", "0,20 a 0,29", "0,30 a 0,39", "0,40 o más"] },
   { name: "Confiabilidad de la prueba", where: "Alfa de Cronbach, en el Resumen", cells: ["", "menos de 0,60", "0,60 a 0,69", "0,70 a 0,79", "0,80 a 0,89", "0,90 o más"] },
+  { name: "Respuestas apuradas", where: "Porcentaje, en Errores y atención (menos es mejor)", cells: ["25% o más", "15 a 24%", "10 a 14%", "6 a 9%", "3 a 5%", "menos de 3%"] },
+  { name: "Por qué se equivocan", where: "Diagnóstico de cada misión, en Errores y atención", cells: ["", "Más difícil que la línea", "Errores por apuro", "", "Más fácil que la línea", ""] },
+  { name: "Señales de atención", where: "Cada chico, en Errores y atención y en su ficha", cells: ["", "Varias señales", "", "Una señal", "Sin señales", ""] },
 ];
 
 export default async function ColorsPage() {
@@ -85,7 +88,7 @@ export default async function ColorsPage() {
             Lo que no lleva semáforo
           </h2>
           <p className="m-0 text-sm leading-relaxed" style={{ color: C.ink2 }}>
-            La cantidad de chicos, los tiempos, la edad y los demás datos de contexto van en gris: no son ni buenos ni malos. La única excepción es el aviso de «Pocos datos» cuando hay menos de 30 chicos, que va en amarillo.
+            La cantidad de chicos, los tiempos, la edad y los demás datos de contexto van en gris: no son ni buenos ni malos. En Tiempos, cuanto más oscuro el gris, más segundos. Las misiones que «siguen la línea» también van en gris. La única excepción es el aviso de «Pocos datos» cuando hay menos de 30 chicos, que va en amarillo.
           </p>
           <div className="flex flex-wrap gap-2">
             <Chip tone="neutro">Dato de contexto</Chip>

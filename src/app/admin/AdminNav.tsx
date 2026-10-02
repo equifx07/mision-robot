@@ -8,6 +8,8 @@ const RESULTS = [
   { href: "/admin", label: "Resumen" },
   { href: "/admin/comparacion", label: "Comparación entre colegios" },
   { href: "/admin/conceptos", label: "Conceptos y prácticas" },
+  { href: "/admin/errores", label: "Errores y atención" },
+  { href: "/admin/tiempos", label: "Tiempos" },
   { href: "/admin/items", label: "Calidad de las misiones" },
   { href: "/admin/estudiantes", label: "Estudiantes" },
 ];

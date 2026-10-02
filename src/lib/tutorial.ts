@@ -175,15 +175,15 @@ export const PRACTICES: Record<string, Practice> = {
   "A2.2": {
     title: "Misiones de completar",
     lines: [
-      "En estas misiones al programa le falta una pieza: el hueco amarillo.",
-      "Cuando tocás una opción, la pieza se pone en el hueco y brilla, así ves cómo queda. Probá y apretá Probar.",
+      "En estas misiones al programa le falta una pieza: el hueco amarillo, enganchado entre los bloques.",
+      "Las piezas para elegir salen del hueco. Cuando tocás una, se encastra en el hueco y brilla, así ves cómo queda. Probá y apretá Probar.",
     ],
     demos: [],
     tries: [
       practice({
         id: "P-completar",
         task: "C",
-        prompt: "¿Qué pieza va en el hueco para que el robot llegue a la base?",
+        prompt: "Al programa le falta una pieza. ¿Cuál va en el hueco para llegar a la base?",
         map: {
           kind: "maze",
           cols: 4,
@@ -200,15 +200,15 @@ export const PRACTICES: Record<string, Practice> = {
   "A2.3": {
     title: "Misiones de arreglar",
     lines: [
-      "En estas misiones el programa tiene un error. La línea roja muestra por dónde voy y la cruz, dónde me choco.",
-      "Cada opción es un cambio: lo de la izquierda se cambia por lo de la derecha. Tocá uno y apretá Probar.",
+      "En estas misiones el programa tiene un solo error. La línea roja muestra por dónde voy y la cruz, dónde me choco.",
+      "Cada bloque tiene un número. Cada opción dice en qué bloque hace el cambio: lo de la izquierda se cambia por lo de la derecha. Tocá uno y apretá Probar.",
     ],
     demos: [],
     tries: [
       practice({
         id: "P-arreglar",
         task: "D",
-        prompt: "El robot se choca. ¿Qué cambio arregla el programa?",
+        prompt: "El robot se choca: el programa tiene un error.",
         map: {
           kind: "maze",
           cols: 3,

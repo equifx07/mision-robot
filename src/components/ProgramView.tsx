@@ -34,11 +34,11 @@ type M = {
 const SIZES: Record<BlockSize, M> = {
   normal: {
     h: 44, moveW: 50, headerH: 48, elseH: 38, armW: 22, footerH: 20, footerW: 98, r: 10, padH: 14, fs: 17, arrow: 24, loop: 22, flag: 22, band: 5, shift: 4, gap: 8,
-    pillH: 32, pillFs: 16, pillPad: 17, pillTip: 12, numH: 30, numMinW: 38, cw: 18, cx: 10, nh: 5, th: 7, mouthBottom: 5, capW: 96, capH: 22, holeFs: 24, holeW: 76,
+    pillH: 32, pillFs: 16, pillPad: 17, pillTip: 12, numH: 30, numMinW: 38, cw: 18, cx: 10, nh: 5, th: 7, mouthBottom: 5, capW: 96, capH: 22, holeFs: 24, holeW: 120,
   },
   compact: {
     h: 32, moveW: 36, headerH: 36, elseH: 28, armW: 15, footerH: 12, footerW: 72, r: 8, padH: 10, fs: 14, arrow: 17, loop: 16, flag: 16, band: 4, shift: 3, gap: 6,
-    pillH: 24, pillFs: 13, pillPad: 12, pillTip: 9, numH: 22, numMinW: 28, cw: 14, cx: 8, nh: 4, th: 6, mouthBottom: 3, capW: 72, capH: 16, holeFs: 18, holeW: 56,
+    pillH: 24, pillFs: 13, pillPad: 12, pillTip: 9, numH: 22, numMinW: 28, cw: 14, cx: 8, nh: 4, th: 6, mouthBottom: 3, capW: 72, capH: 16, holeFs: 18, holeW: 92,
   },
 };
 
@@ -273,9 +273,11 @@ const PILL_ICON = 0.62;
 function CondPill({ cond, m }: { cond: Cond; m: M }) {
   if (cond.kind === "hole")
     return (
-      <Pill m={m} hole>
-        <span style={{ padding: "0 10px", fontSize: m.pillFs + 3, fontWeight: 800, color: "#8A6500" }}>?</span>
-      </Pill>
+      <span data-hole className="hole-pulse" style={{ display: "inline-flex", borderRadius: 8 }}>
+        <Pill m={m} hole>
+          <span style={{ padding: "0 14px", fontSize: m.pillFs + 3, fontWeight: 800, color: "#8A6500" }}>?</span>
+        </Pill>
+      </span>
     );
   const ih = Math.round(m.pillH * PILL_ICON);
   return (
@@ -298,13 +300,16 @@ function stackFace(fam: Fam, m: M, state: State): CSSProperties {
   };
 }
 
-function StackShell({ fam, m, minW, padX, last, state, label, children }: { fam: Fam; m: M; minW: number; padX: number; last?: boolean; state?: State; label?: string; children: ReactNode }) {
+function StackShell({ fam, m, minW, padX, last, state, label, lineNo, children }: { fam: Fam; m: M; minW: number; padX: number; last?: boolean; state?: State; label?: string; lineNo?: ReactNode; children: ReactNode }) {
   return (
     <div
       role={label ? "img" : undefined}
       aria-label={label}
+      data-picked={state === "picked" ? "" : undefined}
+      className={state === "picked" ? "snap-in" : undefined}
       style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxSizing: "border-box", minWidth: minW, height: m.h, padding: `0 ${padX}px ${m.shift}px`, whiteSpace: "nowrap", flexShrink: 0, ...stackFace(fam, m, state) }}
     >
+      {lineNo}
       <Notch m={m} />
       {children}
       {last && <Tab m={m} fill={FAM[fam].D} />}
@@ -313,26 +318,32 @@ function StackShell({ fam, m, minW, padX, last, state, label, children }: { fam:
   );
 }
 
-function MoveBlock({ dir, m, last, state }: { dir: Dir; m: M; last?: boolean; state?: State }) {
+function MoveBlock({ dir, m, last, state, lineNo }: { dir: Dir; m: M; last?: boolean; state?: State; lineNo?: ReactNode }) {
   return (
-    <StackShell fam="move" m={m} minW={m.moveW} padX={0} last={last} state={state} label={`mover a la ${DIR_NAME[dir]}`.replace("a la arriba", "arriba").replace("a la abajo", "abajo")}>
+    <StackShell fam="move" m={m} minW={m.moveW} padX={0} last={last} state={state} lineNo={lineNo} label={`mover a la ${DIR_NAME[dir]}`.replace("a la arriba", "arriba").replace("a la abajo", "abajo")}>
       <BigArrow dir={dir} size={m.arrow} color={FAM.move.T} />
     </StackShell>
   );
 }
 
-function Hole({ m }: { m: M }) {
+/** Hueco: una pieza vacía enganchada en la pila, con la muesca donde encastra la pieza de arriba. */
+function Hole({ m, last }: { m: M; last?: boolean }) {
   return (
     <div
+      data-hole
       aria-label="hueco para completar"
-      style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", boxSizing: "border-box", width: m.holeW, height: m.h, border: `2.5px dashed ${HOLE_LINE}`, borderRadius: m.r, background: HOLE_BG, color: "#8A6500", fontSize: m.holeFs, fontWeight: 800, lineHeight: 1, flexShrink: 0 }}
+      className="hole-pulse"
+      style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxSizing: "border-box", width: m.holeW, height: m.h + 4, border: `3px dashed ${HOLE_LINE}`, borderRadius: m.r, background: HOLE_BG, color: "#7A5600", fontSize: m.holeFs, fontWeight: 800, lineHeight: 1, flexShrink: 0 }}
     >
-      ?
+      <Notch m={m} />
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: m.holeFs + 6, height: m.holeFs + 6, borderRadius: 999, background: "#F2B200", color: "#FFFFFF", fontSize: m.holeFs - 2 }}>?</span>
+      <span style={{ fontSize: m.fs, fontWeight: 700 }}>hueco</span>
+      {last && <Tab m={m} fill={HOLE_LINE} />}
     </div>
   );
 }
 
-function Head({ fam, m, state, hat, variant = "head", radius, children }: { fam: Fam; m: M; state?: State; hat?: boolean; variant?: "head" | "else"; radius: string; children: ReactNode }) {
+function Head({ fam, m, state, hat, variant = "head", radius, lineNo, children }: { fam: Fam; m: M; state?: State; hat?: boolean; variant?: "head" | "else"; radius: string; lineNo?: ReactNode; children: ReactNode }) {
   const f = FAM[fam];
   const isElse = variant === "else";
   return (
@@ -345,7 +356,10 @@ function Head({ fam, m, state, hat, variant = "head", radius, children }: { fam:
         ...(state === "changed" ? CHANGED : {}),
         ...(state === "picked" ? { filter: PICK_GLOW, zIndex: 1 } : {}),
       }}
+      data-picked={state === "picked" ? "" : undefined}
+      className={state === "picked" ? "snap-in" : undefined}
     >
+      {lineNo}
       {!hat && !isElse && <Notch m={m} />}
       {children}
       <span aria-hidden style={{ position: "absolute", left: m.armW, right: 0, bottom: 0, height: 3, background: "rgba(0, 0, 0, 0.13)", borderBottomRightRadius: m.r }} />
@@ -394,7 +408,26 @@ function Cap({ fam, m }: { fam: Fam; m: M }) {
 
 // ───────── Composición ─────────
 
-type Ctx = { m: M; changed?: Set<number>; running?: Set<number>; picked?: Set<number>; inPick?: boolean };
+type Ctx = { m: M; changed?: Set<number>; running?: Set<number>; picked?: Set<number>; inPick?: boolean; depth: number; numbers?: Map<number, number>; hot?: Set<number> };
+
+/** Ancho del medianil donde van los números de bloque. */
+const GUTTER = 34;
+
+/** Número de bloque en el medianil, a la izquierda de la pila, a la altura de su fila. */
+function LineNo({ ctx, row, rowH }: { ctx: Ctx; row: number; rowH: number }) {
+  const n = ctx.numbers?.get(row);
+  if (n === undefined) return null;
+  const hot = ctx.hot?.has(row);
+  const d = 24;
+  return (
+    <span
+      aria-label={`bloque ${n}`}
+      style={{ position: "absolute", left: -(ctx.depth * ctx.m.armW + GUTTER), top: Math.max(0, Math.round((rowH - d) / 2)), width: d, height: d, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, lineHeight: 1, background: hot ? "#F2B200" : "#E9EDF3", color: hot ? "#3A2600" : "#4A5568", zIndex: 4 }}
+    >
+      {n}
+    </span>
+  );
+}
 const stateOf = (ctx: Ctx, i: number): State =>
   ctx.running?.has(i) ? "running" : !ctx.inPick && ctx.picked?.has(i) ? "picked" : ctx.changed?.has(i) ? "changed" : undefined;
 
@@ -407,13 +440,22 @@ function wholePicked(ctx: Ctx, b: Block, start: number): boolean {
 }
 
 function Glow({ children }: { children: ReactNode }) {
-  return <div style={{ position: "relative", zIndex: 1, filter: PICK_GLOW, display: "flex", flexDirection: "column", alignItems: "flex-start", flexShrink: 0 }}>{children}</div>;
+  return (
+    <div data-picked className="snap-in" style={{ position: "relative", zIndex: 1, filter: PICK_GLOW, display: "flex", flexDirection: "column", alignItems: "flex-start", flexShrink: 0 }}>
+      {children}
+    </div>
+  );
 }
 
 /** Encabezado suelto (bloque con el cuerpo vacío): se usa para mostrar un cambio, p. ej. "repetir 3 veces". */
-function HeadOnly({ fam, m, state, children }: { fam: Fam; m: M; state?: State; children: ReactNode }) {
+function HeadOnly({ fam, m, state, lineNo, children }: { fam: Fam; m: M; state?: State; lineNo?: ReactNode; children: ReactNode }) {
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "center", gap: m.gap, boxSizing: "border-box", minHeight: m.headerH, padding: `0 ${m.padH}px ${Math.round(m.band / 2)}px`, whiteSpace: "nowrap", flexShrink: 0, ...stackFace(fam, m, state) }}>
+    <div
+      data-picked={state === "picked" ? "" : undefined}
+      className={state === "picked" ? "snap-in" : undefined}
+      style={{ position: "relative", display: "flex", alignItems: "center", gap: m.gap, boxSizing: "border-box", minHeight: m.headerH, padding: `0 ${m.padH}px ${Math.round(m.band / 2)}px`, whiteSpace: "nowrap", flexShrink: 0, ...stackFace(fam, m, state) }}
+    >
+      {lineNo}
       <Notch m={m} />
       {children}
     </div>
@@ -426,11 +468,11 @@ function CBlock({ fam, head, body, start, ctx, last, hat }: { fam: Fam; head: Re
   return (
     <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-start", flexShrink: 0 }}>
       {hat && <Cap fam={fam} m={m} />}
-      <Head fam={fam} m={m} state={stateOf(ctx, start)} hat={hat} radius={hat ? `0 ${r} ${r} 0` : `${r} ${r} ${r} 0`}>
+      <Head fam={fam} m={m} state={stateOf(ctx, start)} hat={hat} radius={hat ? `0 ${r} ${r} 0` : `${r} ${r} ${r} 0`} lineNo={<LineNo ctx={ctx} row={start} rowH={m.headerH} />}>
         {head}
       </Head>
       <Mouth fam={fam} m={m}>
-        <Stack blocks={body} start={start + 1} ctx={ctx} />
+        <Stack blocks={body} start={start + 1} ctx={{ ...ctx, depth: ctx.depth + 1 }} />
       </Mouth>
       <Foot fam={fam} m={m} last={last} />
     </div>
@@ -443,11 +485,11 @@ function IfElse({ head, thenB, elseB, start, ctx, last }: { head: ReactNode; the
   const elseIdx = start + 1 + rowsIn(thenB);
   return (
     <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-start", flexShrink: 0 }}>
-      <Head fam="cond" m={m} state={stateOf(ctx, start)} radius={`${r} ${r} ${r} 0`}>
+      <Head fam="cond" m={m} state={stateOf(ctx, start)} radius={`${r} ${r} ${r} 0`} lineNo={<LineNo ctx={ctx} row={start} rowH={m.headerH} />}>
         {head}
       </Head>
       <Mouth fam="cond" m={m}>
-        <Stack blocks={thenB} start={start + 1} ctx={ctx} />
+        <Stack blocks={thenB} start={start + 1} ctx={{ ...ctx, depth: ctx.depth + 1 }} />
       </Mouth>
       <Head fam="cond" m={m} state={stateOf(ctx, elseIdx)} variant="else" radius={`0 ${r} ${r} 0`}>
         <Txt fam="cond" m={m}>
@@ -455,7 +497,7 @@ function IfElse({ head, thenB, elseB, start, ctx, last }: { head: ReactNode; the
         </Txt>
       </Head>
       <Mouth fam="cond" m={m}>
-        <Stack blocks={elseB} start={elseIdx + 1} ctx={ctx} />
+        <Stack blocks={elseB} start={elseIdx + 1} ctx={{ ...ctx, depth: ctx.depth + 1 }} />
       </Mouth>
       <Foot fam="cond" m={m} last={last} />
     </div>
@@ -508,23 +550,23 @@ function BlockEl({ b, start, ctx, last }: { b: Block; start: number; ctx: Ctx; l
   }
   switch (b.t) {
     case "move":
-      return <MoveBlock dir={b.dir} m={m} last={last} state={stateOf(ctx, start)} />;
+      return <MoveBlock dir={b.dir} m={m} last={last} state={stateOf(ctx, start)} lineNo={<LineNo ctx={ctx} row={start} rowH={m.h} />} />;
     case "call":
       return (
-        <StackShell fam="func" m={m} minW={0} padX={m.padH + 4} last={last} state={stateOf(ctx, start)}>
+        <StackShell fam="func" m={m} minW={0} padX={m.padH + 4} last={last} state={stateOf(ctx, start)} lineNo={<LineNo ctx={ctx} row={start} rowH={m.h} />}>
           <Txt fam="func" m={m}>
             {b.name}
           </Txt>
         </StackShell>
       );
     case "hole":
-      return <Hole m={m} />;
+      return <Hole m={m} last={last} />;
     case "repeat":
     case "until":
     case "while":
       if (b.body.length === 0)
         return (
-          <HeadOnly fam="loop" m={m} state={stateOf(ctx, start)}>
+          <HeadOnly fam="loop" m={m} state={stateOf(ctx, start)} lineNo={<LineNo ctx={ctx} row={start} rowH={m.headerH} />}>
             {loopHead(b, m)}
           </HeadOnly>
         );
@@ -540,7 +582,7 @@ function BlockEl({ b, start, ctx, last }: { b: Block; start: number; ctx: Ctx; l
       );
       if (b.then.length === 0 && !b.else?.length)
         return (
-          <HeadOnly fam="cond" m={m} state={stateOf(ctx, start)}>
+          <HeadOnly fam="cond" m={m} state={stateOf(ctx, start)} lineNo={<LineNo ctx={ctx} row={start} rowH={m.headerH} />}>
             {head}
           </HeadOnly>
         );
@@ -616,7 +658,7 @@ function measureBlock(b: Block, m: M): Size {
     case "call":
       return { w: m.padH * 2 + 8 + textW(b.name, m.fs), h: m.h };
     case "hole":
-      return { w: m.holeW, h: m.h };
+      return { w: m.holeW, h: m.h + 4 };
     case "repeat":
     case "until":
     case "while": {
@@ -667,13 +709,27 @@ type Props = {
   running?: Set<number>;
   /** Filas que eligió el chico (la pieza puesta en el hueco o el cambio aplicado): brillan en dorado. */
   picked?: Set<number>;
+  /** Numera los bloques en un medianil a la izquierda (misiones de arreglar). */
+  numbered?: boolean;
+  /** Filas cuyo número se resalta (el bloque que cambió). */
+  hot?: Set<number>;
   size?: BlockSize;
   className?: string;
 };
 
-export function ProgramView({ program, changed, running, picked, size = "normal", className }: Props) {
+/** Número de cada fila (todas menos los "si no", que son parte de su bloque "si"). */
+export function blockNumbers(program: Program): Map<number, number> {
+  const out = new Map<number, number>();
+  let n = 0;
+  flattenRows(program).forEach((r, i) => {
+    if (!r.endsWith(":else")) out.set(i, ++n);
+  });
+  return out;
+}
+
+export function ProgramView({ program, changed, running, picked, numbered, hot, size = "normal", className }: Props) {
   const m = SIZES[size];
-  const ctx: Ctx = { m, changed, running, picked };
+  const ctx: Ctx = { m, changed, running, picked, depth: 0, numbers: numbered ? blockNumbers(program) : undefined, hot };
   let idx = 0;
   const defs = (program.defs ?? []).map((d) => {
     const here = idx;
@@ -699,7 +755,7 @@ export function ProgramView({ program, changed, running, picked, size = "normal"
     );
   });
   return (
-    <div className={className} style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", gap: defs.length ? Math.round(m.h * 0.5) : 0, paddingBottom: m.th }}>
+    <div className={className} style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", gap: defs.length ? Math.round(m.h * 0.5) : 0, paddingBottom: m.th, paddingLeft: numbered ? GUTTER : 0 }}>
       {defs}
       {program.main.length > 0 && <Stack blocks={program.main} start={idx} ctx={ctx} />}
     </div>
