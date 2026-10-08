@@ -1,7 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
 import { itemTimeInsight, rightWrongInsight, schoolTimeInsight, totalTimeInsight } from "@/lib/insights";
-import { ITEMS } from "@/lib/items";
 import { itemTimes, loadReference, testMinutes, timeStats } from "@/lib/patrones";
 import { TIME_BINS, timeBin } from "@/lib/semaforo";
 import { fmt, median, pct } from "@/lib/stats";
@@ -19,25 +18,26 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
   const filters = parseFilters(await searchParams);
   const d = loadDashboard(filters);
   const n = d.scored.length;
-  const ref = loadReference();
+  const ref = loadReference(d.test);
   const groups = [...d.bySchool].sort((a, b) => a.school.name.localeCompare(b.school.name));
   const many = groups.length > 1;
 
   const minutesOf = (name: string, rows: typeof d.scored) => {
     const m = testMinutes(rows);
-    return { name, n: rows.length, total: timeStats(m.total), missions: timeStats(m.missions), timedOut: m.timedOut };
+    return { name, n: rows.length, total: timeStats(m.total), missions: timeStats(m.missions) };
   };
   const all = minutesOf("Todos", d.scored);
   const bySchool = groups.map((g) => minutesOf(g.school.name, g.scored));
   const explain = d.scored
     .map((r) => {
-      const sum = ITEMS.reduce((a, it) => a + (r.times[it.id] ?? 0), 0);
+      const sum = d.test.items.reduce((a, it) => a + (r.times[it.id] ?? 0), 0);
       return r.totalTimeMs && sum ? (r.totalTimeMs - sum) / 60000 : NaN;
     })
     .filter((x) => Number.isFinite(x) && x >= 0);
 
   const times = itemTimes(d.scored, ref);
   const allMedians = times.map((t) => t.all.median);
+  const slowest = [...times].filter((t) => Number.isFinite(t.all.median)).sort((a, b) => b.all.median - a.all.median)[0];
   const schoolRows = groups.map((g) => ({ name: g.school.name, n: g.scored.length, values: itemTimes(g.scored, ref).map((t) => t.all.median) }));
 
   return (
@@ -50,15 +50,14 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Kpi label="Prueba completa" value={fmt(all.total.median, 0)} unit="min" chip={{ tone: "neutro", label: "Mediana" }} sub={`La mitad central tardó de ${fmt(all.total.q1, 0)} a ${fmt(all.total.q3, 0)} min, de 45 disponibles.`} />
-            <Kpi label="Resolviendo misiones" value={fmt(all.missions.median, 0)} unit="min" chip={{ tone: "neutro", label: "Mediana" }} sub="La suma de lo que tardó en las 28 misiones." />
+            <Kpi label="Prueba completa" value={fmt(all.total.median, 0)} unit="min" chip={{ tone: "neutro", label: "Mediana" }} sub={`La mitad central tardó de ${fmt(all.total.q1, 0)} a ${fmt(all.total.q3, 0)} min. No hay límite de tiempo.`} />
+            <Kpi label="Resolviendo misiones" value={fmt(all.missions.median, 0)} unit="min" chip={{ tone: "neutro", label: "Mediana" }} sub={`La suma de lo que tardó en las ${d.test.max} misiones.`} />
             <Kpi label="Explicación y prácticas" value={explain.length ? fmt(median(explain), 0) : "–"} unit="min" chip={{ tone: "neutro", label: "Aproximado" }} sub="Lo que queda de la prueba completa al sacar las misiones." />
             <Kpi
-              label="Se quedaron sin tiempo"
-              value={all.timedOut}
-              unit={`de ${n}`}
-              chip={all.timedOut === 0 ? { tone: "bien", label: "Terminaron todos" } : all.timedOut / n < 0.1 ? { tone: "intermedio", label: pct(all.timedOut / n) } : { tone: "bajo", label: pct(all.timedOut / n) }}
-              sub="Las misiones que no llegaron a hacer cuentan como no respondidas."
+              label="Misión que más tiempo lleva"
+              value={slowest ? slowest.id : "–"}
+              chip={{ tone: "neutro", label: slowest ? `${fmt(slowest.all.median, 0)} s` : "Sin datos" }}
+              sub="Tiempo típico (mediana) de esa misión."
             />
           </div>
 
@@ -75,8 +74,8 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
             id="total"
             kicker="1 · TODA LA PRUEBA"
             question="¿Cuánto tardan en hacer toda la prueba?"
-            muestra="Los minutos que tardó cada chico, en total y por colegio. La caja oscura es la prueba completa; la clara, solo el tiempo resolviendo misiones. La línea roja punteada es el límite de 45 minutos."
-            medicion="Prueba completa: desde que el chico empieza (después de poner sus datos) hasta que termina la última misión o se acaba el tiempo; incluye la explicación y las prácticas. Resolviendo misiones: la suma de lo que tardó en cada misión. Se usa la mediana (el chico del medio) porque unos pocos muy lentos o muy rápidos moverían mucho el promedio."
+            muestra="Los minutos que tardó cada chico, en total y por colegio. La caja oscura es la prueba completa; la clara, solo el tiempo resolviendo misiones."
+            medicion="Prueba completa: desde que el chico empieza (después de poner sus datos) hasta que termina la última misión (no hay límite de tiempo); incluye la explicación y las prácticas. Resolviendo misiones: la suma de lo que tardó en cada misión. Se usa la mediana (el chico del medio) porque unos pocos muy lentos o muy rápidos moverían mucho el promedio."
             observa={totalTimeInsight(all, bySchool)}
           >
             <Card>
@@ -113,7 +112,7 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
                   <ToneHeatmap
                     compact
                     labelWidth={170}
-                    columns={ITEMS.map((it) => it.id)}
+                    columns={d.test.ids}
                     groups={[
                       {
                         rows: [

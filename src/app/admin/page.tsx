@@ -3,7 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
 import { highlights, levelsInsight } from "@/lib/insights";
 import { alphaTone, FEW_DATA, LEVEL_TONE, TONES } from "@/lib/semaforo";
-import { fmt, LEVELS, levelOfMean, MAX_SCORE, pct } from "@/lib/stats";
+import { fmt, levelOfMean, pct } from "@/lib/stats";
+import { levelsText } from "@/lib/tests";
 import { LevelLegend, LevelStack, ScoreHistogram } from "@/components/admin/charts";
 import { C, Card, Chip, EmptyState, ExplainedSection, HEADING, Kpi, PageHeader } from "@/components/admin/ui";
 import { FiltersBar } from "./Filters";
@@ -16,8 +17,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const d = loadDashboard(filters);
   const s = d.summary;
   const schools = d.bySchool.length;
-  const common = [...LEVELS].sort((a, b) => s.levels[b.key] - s.levels[a.key])[0];
-  const meanLevel = levelOfMean(s.mean);
+  const common = [...d.test.levels].sort((a, b) => s.levels[b.key] - s.levels[a.key])[0];
+  const meanLevel = levelOfMean(d.test, s.mean);
   const alpha = alphaTone(d.alpha);
 
   return (
@@ -39,7 +40,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
             <Kpi
               label="Puntaje promedio"
               value={fmt(s.mean)}
-              unit={`de ${MAX_SCORE}`}
+              unit={`de ${d.test.max}`}
               chip={{ tone: LEVEL_TONE[meanLevel.key], label: `Nivel ${meanLevel.name}` }}
               sub={`Rango probable: ${fmt(s.ci[0])} a ${fmt(s.ci[1])}. Mediana ${fmt(s.median)} · desvío ${fmt(s.sd)}.`}
             />
@@ -50,7 +51,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
               sub={`${s.levels[common.key]} de ${s.n} chicos (${pct(s.levels[common.key] / s.n)}).`}
             />
             <Kpi label="Confiabilidad de la prueba" value={fmt(d.alpha, 2)} chip={{ tone: alpha.tone, label: alpha.label }} sub={`Alfa de Cronbach. Desde 0,80 es buena. Parte A sola: ${fmt(d.alphaA, 2)}.`} />
-            <Kpi label="Tiempo típico" value={fmt(s.medianTimeMin, 0)} unit="min" chip={{ tone: "neutro", label: "Dato de contexto" }} sub="Mediana, de 45 minutos disponibles." />
+            <Kpi label="Tiempo típico" value={fmt(s.medianTimeMin, 0)} unit="min" chip={{ tone: "neutro", label: "Dato de contexto" }} sub="Mediana de la prueba completa. No hay límite de tiempo." />
           </div>
 
           <ExplainedSection
@@ -58,18 +59,18 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
             kicker="1 · NIVELES DE DESEMPEÑO"
             question="¿Cómo les fue en general?"
             muestra="Arriba, cuántos chicos quedaron en cada nivel. Abajo, el puntaje de cada uno: cada barra es la cantidad de chicos que sacó ese puntaje, pintada según su nivel."
-            medicion="Un punto por cada misión bien resuelta: 28 en total (20 del robot y 8 de lógica). Los niveles son cortes provisorios sobre ese puntaje (Inicial 0–9, En desarrollo 10–16, Logrado 17–22, Avanzado 23–28) y se van a recalibrar después del piloto."
-            observa={levelsInsight(s, d.bySchool)}
+            medicion={`Un punto por cada misión bien resuelta: ${d.test.max} en total (${d.test.partA} del robot y ${d.test.partB} de lógica). Los niveles son cortes provisorios sobre ese puntaje (${levelsText(d.test)}) y se van a recalibrar después del piloto.`}
+            observa={levelsInsight(d.test, s, d.bySchool)}
           >
             <Card className="flex flex-col gap-6">
               <div className="flex flex-col gap-2.5">
                 <span className="text-[15px] font-bold">Chicos por nivel</span>
-                <LevelStack levels={s.levels} n={s.n} />
-                <LevelLegend />
+                <LevelStack test={d.test} levels={s.levels} n={s.n} />
+                <LevelLegend test={d.test} />
               </div>
               <div className="flex flex-col gap-2.5">
                 <span className="text-[15px] font-bold">Puntaje de cada chico</span>
-                <ScoreHistogram scores={s.scores} max={MAX_SCORE} />
+                <ScoreHistogram scores={s.scores} test={d.test} />
               </div>
             </Card>
           </ExplainedSection>
@@ -84,7 +85,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
               </h2>
             </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              {highlights(s, d.bySchool, d.items).map((h) => (
+              {highlights(d.test, s, d.bySchool, d.items).map((h) => (
                 <div key={h.href} className="flex flex-col gap-2.5 rounded-[18px] border bg-white p-5" style={{ borderColor: C.line }}>
                   <span>
                     <Chip tone={h.tone}>{h.badge}</Chip>

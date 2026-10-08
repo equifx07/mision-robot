@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAttempt } from "@/lib/repo";
+import { isGrade } from "@/lib/tests";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,10 @@ export async function POST(req: Request) {
   }
   const name = String(body.studentName ?? "").trim();
   const schoolId = Number(body.schoolId);
-  const courseId = Number(body.courseId);
+  const grade = String(body.grade ?? "");
   if (name.length < 2 || name.length > 80) return NextResponse.json({ error: "Escribí tu nombre" }, { status: 400 });
-  if (!Number.isInteger(schoolId) || !Number.isInteger(courseId)) return NextResponse.json({ error: "Elegí colegio y curso" }, { status: 400 });
+  if (!isGrade(grade)) return NextResponse.json({ error: "Elegí si sos de 4.º o de 6.º" }, { status: 400 });
+  if (!Number.isInteger(schoolId)) return NextResponse.json({ error: "Elegí tu colegio" }, { status: 400 });
   const age = body.age === null || body.age === undefined || body.age === "" ? null : Number(body.age);
   if (age !== null && (!Number.isInteger(age) || age < 8 || age > 16)) return NextResponse.json({ error: "Edad inválida" }, { status: 400 });
   const priorExp = body.priorExp ? String(body.priorExp) : null;
@@ -28,7 +30,7 @@ export async function POST(req: Request) {
   try {
     const attempt = createAttempt({
       schoolId,
-      courseId,
+      grade,
       studentName: name,
       age,
       priorExp,
@@ -37,7 +39,7 @@ export async function POST(req: Request) {
       userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? null,
       screen: body.screen ? String(body.screen).slice(0, 40) : null,
     });
-    return NextResponse.json({ attemptId: attempt.id, startedAt: attempt.started_at, optionOrders: attempt.option_orders });
+    return NextResponse.json({ attemptId: attempt.id, grade: attempt.grade, startedAt: attempt.started_at, optionOrders: attempt.option_orders });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Error" }, { status: 400 });
   }

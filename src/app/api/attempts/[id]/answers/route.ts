@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
-import { finishAttempt, getAttempt, saveAnswer, TIME_LIMIT_MS } from "@/lib/repo";
+import { getAttempt, saveAnswer } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
-const GRACE_MS = 2 * 60 * 1000;
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const attempt = getAttempt(id);
   if (!attempt) return NextResponse.json({ error: "No existe" }, { status: 404 });
   if (attempt.status !== "in_progress") return NextResponse.json({ error: "La prueba ya terminó", status: attempt.status }, { status: 409 });
-  if (Date.now() - Date.parse(attempt.started_at) > TIME_LIMIT_MS + GRACE_MS) {
-    finishAttempt(id, "timed_out");
-    return NextResponse.json({ error: "Se terminó el tiempo", status: "timed_out" }, { status: 409 });
-  }
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;

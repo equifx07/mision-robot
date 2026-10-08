@@ -1,12 +1,20 @@
 import { requireAdmin } from "@/lib/auth";
 import { D_SCALE, SCALE, TONE_MEANING, TONES } from "@/lib/semaforo";
+import { TESTS } from "@/lib/tests";
+
+/** "Inicial (4.º 0–7 · 6.º 0–8)": los cortes de cada prueba. */
+const lvl = (i: number) => {
+  const l4 = TESTS["4"].levels[i];
+  const l6 = TESTS["6"].levels[i];
+  return `${l4.name} (4.º ${l4.min}–${l4.max} · 6.º ${l6.min}–${l6.max})`;
+};
 import { C, Chip, HEADING, PageHeader, ScaleLegend } from "@/components/admin/ui";
 
 export const dynamic = "force-dynamic";
 
 // Umbrales de cada medida, en el orden de SCALE (crítico → muy bien). "" = ese color no se usa.
 const RULES: { name: string; where: string; cells: string[] }[] = [
-  { name: "Nivel de desempeño", where: "Puntaje de un chico o promedio de un grupo (0 a 28)", cells: ["", "Inicial (0–9)", "", "En desarrollo (10–16)", "Logrado (17–22)", "Avanzado (23–28)"] },
+  { name: "Nivel de desempeño", where: `Puntaje de un chico o promedio de un grupo (4.º: 0 a ${TESTS["4"].max} · 6.º: 0 a ${TESTS["6"].max})`, cells: ["", lvl(0), "", lvl(1), lvl(2), lvl(3)] },
   { name: "Porcentaje de acierto", where: "Conceptos, prácticas, tareas y misiones", cells: ["menos de 30%", "30 a 44%", "45 a 59%", "60 a 74%", "75 a 89%", "90% o más"] },
   { name: "Cuánto separa una misión", where: "Discriminación, en Calidad de las misiones", cells: ["negativa", "0 a 0,19", "", "0,20 a 0,29", "0,30 a 0,39", "0,40 o más"] },
   { name: "Confiabilidad de la prueba", where: "Alfa de Cronbach, en el Resumen", cells: ["", "menos de 0,60", "0,60 a 0,69", "0,70 a 0,79", "0,80 a 0,89", "0,90 o más"] },

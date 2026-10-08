@@ -1,30 +1,23 @@
-// Estadísticas descriptivas y psicométricas para el panel.
-import { ITEMS, ITEMS_A } from "./items";
+// Estadísticas descriptivas y psicométricas para el panel. Todo se calcula para UNA prueba
+// (4.º o 6.º): sus misiones, su puntaje máximo y sus niveles. Nunca se mezclan las dos.
 import type { Item, ItemA } from "./model";
 import type { Answer, AttemptRow } from "./repo";
+import type { Level, TestDef } from "./tests";
 
-export const MAX_SCORE = ITEMS.length;
+export type { Level };
 
-export type Level = { key: string; name: string; min: number; max: number };
-export const LEVELS: Level[] = [
-  { key: "inicial", name: "Inicial", min: 0, max: 9 },
-  { key: "desarrollo", name: "En desarrollo", min: 10, max: 16 },
-  { key: "logrado", name: "Logrado", min: 17, max: 22 },
-  { key: "avanzado", name: "Avanzado", min: 23, max: 28 },
-];
-
-export function levelOf(score: number): Level {
-  return LEVELS.find((l) => score >= l.min && score <= l.max) ?? LEVELS[0];
+export function levelOf(test: TestDef, score: number): Level {
+  return test.levels.find((l) => score >= l.min && score <= l.max) ?? test.levels[0];
 }
 
 /**
  * Nivel de un valor con decimales (p. ej. un promedio de 16,5 cae en En desarrollo).
  * Se redondea a un decimal, como se muestra: un 16,95 se ve "17,0" y tiene que decir Logrado.
  */
-export function levelOfMean(x: number): Level {
+export function levelOfMean(test: TestDef, x: number): Level {
   const v = Math.round(x * 10) / 10;
-  for (let i = LEVELS.length - 1; i >= 0; i--) if (v >= LEVELS[i].min) return LEVELS[i];
-  return LEVELS[0];
+  for (let i = test.levels.length - 1; i >= 0; i--) if (v >= test.levels[i].min) return test.levels[i];
+  return test.levels[0];
 }
 
 export const CONCEPT_LABEL: Record<ItemA["concept"], string> = {
@@ -71,16 +64,19 @@ export function dimensionOf(item: Item): { key: string; label: string; short: st
   return { key: `p:${item.practice}`, label: PRACTICE_LABEL[item.practice] ?? item.practice, short: PRACTICE_SHORT[item.practice] ?? item.practice, group: "practica" };
 }
 
-export const DIMENSIONS = (() => {
-  const seen = new Map<string, { key: string; label: string; short: string; group: "concepto" | "practica"; items: string[] }>();
-  for (const it of ITEMS) {
+export type Dimension = { key: string; label: string; short: string; group: "concepto" | "practica"; items: string[] };
+
+/** Conceptos y prácticas que mide una prueba, con sus misiones. */
+export function dimensionsOf(test: TestDef): Dimension[] {
+  const seen = new Map<string, Dimension>();
+  for (const it of test.items) {
     const d = dimensionOf(it);
     const e = seen.get(d.key) ?? { ...d, items: [] };
     e.items.push(it.id);
     seen.set(d.key, e);
   }
   return [...seen.values()];
-})();
+}
 
 // ───────── descriptivas ─────────
 
@@ -147,7 +143,7 @@ export type Scored = {
   totalTimeMs: number | null;
 };
 
-export function scoreAttempts(attempts: AttemptRow[], answers: Answer[]): Scored[] {
+export function scoreAttempts(test: TestDef, attempts: AttemptRow[], answers: Answer[]): Scored[] {
   const byAttempt = new Map<string, Answer[]>();
   for (const a of answers) {
     const list = byAttempt.get(a.attempt_id) ?? [];
@@ -163,7 +159,7 @@ export function scoreAttempts(attempts: AttemptRow[], answers: Answer[]): Scored
     const byDimension: Record<string, { correct: number; total: number }> = {};
     const byTask: Record<string, { correct: number; total: number }> = {};
     let total = 0;
-    for (const item of ITEMS) {
+    for (const item of test.items) {
       const a = byItem.get(item.id);
       const ok: 0 | 1 = a?.is_correct === 1 ? 1 : 0;
       correct[item.id] = ok;
@@ -204,12 +200,12 @@ export type GroupSummary = {
   scores: number[];
 };
 
-export function summarize(rows: Scored[]): GroupSummary {
+export function summarize(test: TestDef, rows: Scored[]): GroupSummary {
   const scores = rows.map((r) => r.total);
-  const levels: Record<string, number> = Object.fromEntries(LEVELS.map((l) => [l.key, 0]));
-  for (const s of scores) levels[levelOf(s).key]++;
+  const levels: Record<string, number> = Object.fromEntries(test.levels.map((l) => [l.key, 0]));
+  for (const s of scores) levels[levelOf(test, s).key]++;
   const dims: Record<string, number> = {};
-  for (const d of DIMENSIONS) {
+  for (const d of dimensionsOf(test)) {
     const c = rows.reduce((a, r) => a + (r.byDimension[d.key]?.correct ?? 0), 0);
     const t = rows.reduce((a, r) => a + (r.byDimension[d.key]?.total ?? 0), 0);
     dims[d.key] = t ? c / t : NaN;
@@ -221,7 +217,7 @@ export function summarize(rows: Scored[]): GroupSummary {
     tasks[k] = t ? c / t : NaN;
   }
   const items: Record<string, number> = {};
-  for (const it of ITEMS) items[it.id] = rows.length ? mean(rows.map((r) => r.correct[it.id])) : NaN;
+  for (const it of test.items) items[it.id] = rows.length ? mean(rows.map((r) => r.correct[it.id])) : NaN;
   const times = rows.map((r) => r.totalTimeMs).filter((t): t is number => t !== null && t > 0);
   return {
     n: rows.length,
@@ -255,8 +251,8 @@ export type ItemStats = {
   flag: "ok" | "facil" | "dificil" | "baja-disc" | "negativa";
 };
 
-export function itemAnalysis(rows: Scored[]): ItemStats[] {
-  return ITEMS.map((item) => {
+export function itemAnalysis(test: TestDef, rows: Scored[]): ItemStats[] {
+  return test.items.map((item) => {
     const xs = rows.map((r) => r.correct[item.id]);
     const rest = rows.map((r) => r.total - r.correct[item.id]);
     const p = xs.length ? mean(xs) : NaN;
@@ -278,7 +274,7 @@ export function itemAnalysis(rows: Scored[]): ItemStats[] {
   });
 }
 
-export function cronbachAlpha(rows: Scored[], itemIds: string[] = ITEMS.map((i) => i.id)): number {
+export function cronbachAlpha(rows: Scored[], itemIds: string[]): number {
   if (rows.length < 3) return NaN;
   const k = itemIds.length;
   const totals = rows.map((r) => itemIds.reduce((a, id) => a + r.correct[id], 0));
@@ -295,4 +291,3 @@ export function pct(x: number): string {
   return Number.isFinite(x) ? `${Math.round(x * 100)}%` : "–";
 }
 
-export { ITEMS_A };

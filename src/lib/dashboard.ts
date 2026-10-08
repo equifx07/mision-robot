@@ -1,10 +1,11 @@
-// Carga y agrega los datos para el panel según filtros.
-import { listAllAnswers, listAttempts, listSchools, type AttemptRow, type School } from "./repo";
+// Carga y agrega los datos para el panel según filtros. Siempre de UNA prueba (4.º o 6.º), nunca de las dos.
+import { listAllAnswers, listAttempts, listSchools, type School } from "./repo";
 import { cronbachAlpha, itemAnalysis, scoreAttempts, summarize, type GroupSummary, type ItemStats, type Scored } from "./stats";
+import { isGrade, testOf, type Grade, type TestDef } from "./tests";
 
 export type Filters = {
+  grade: Grade;
   schoolId?: number;
-  courseId?: number;
   priorExp?: string;
   includeUnfinished?: boolean;
 };
@@ -13,12 +14,11 @@ export type SchoolGroup = { school: School; scored: Scored[]; summary: GroupSumm
 
 export type DashboardData = {
   filters: Filters;
+  test: TestDef;
   schools: School[];
-  attempts: AttemptRow[];
   scored: Scored[];
   summary: GroupSummary;
   bySchool: SchoolGroup[];
-  byCourse: { label: string; scored: Scored[]; summary: GroupSummary }[];
   alpha: number;
   alphaA: number;
   items: ItemStats[];
@@ -26,50 +26,49 @@ export type DashboardData = {
 
 export function parseFilters(sp: Record<string, string | string[] | undefined>): Filters {
   const one = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]) as string | undefined;
+  const grado = one("grado");
   const schoolId = Number(one("colegio"));
-  const courseId = Number(one("curso"));
   const priorExp = one("exp");
   return {
+    grade: isGrade(grado) ? grado : "6",
     schoolId: Number.isInteger(schoolId) && schoolId > 0 ? schoolId : undefined,
-    courseId: Number.isInteger(courseId) && courseId > 0 ? courseId : undefined,
     priorExp: priorExp && ["nunca", "algunas", "siempre"].includes(priorExp) ? priorExp : undefined,
     includeUnfinished: one("todos") === "1",
   };
 }
 
-export function loadDashboard(filters: Filters): DashboardData {
-  const schools = listSchools();
-  let attempts = listAttempts({ schoolId: filters.schoolId, courseId: filters.courseId });
+/** Pruebas corregidas de un grado (con los filtros de colegio y experiencia). */
+export function loadScored(filters: Filters): Scored[] {
+  const test = testOf(filters.grade);
+  let attempts = listAttempts({ grade: filters.grade, schoolId: filters.schoolId });
   if (!filters.includeUnfinished) attempts = attempts.filter((a) => a.status !== "in_progress");
   if (filters.priorExp) attempts = attempts.filter((a) => a.prior_exp === filters.priorExp);
-  const answers = listAllAnswers(attempts.map((a) => a.id));
-  const scored = scoreAttempts(attempts, answers);
-  const summary = summarize(scored);
+  return scoreAttempts(test, attempts, listAllAnswers(attempts.map((a) => a.id)));
+}
+
+export function loadDashboard(filters: Filters): DashboardData {
+  const test = testOf(filters.grade);
+  const schools = listSchools();
+  const scored = loadScored(filters);
+  const summary = summarize(test, scored);
   const bySchool: SchoolGroup[] = schools
     .map((school) => {
       const rows = scored.filter((s) => s.attempt.school_id === school.id);
-      return { school, scored: rows, summary: summarize(rows) };
+      return { school, scored: rows, summary: summarize(test, rows) };
     })
     .filter((g) => g.scored.length > 0);
-  const courseMap = new Map<string, Scored[]>();
-  for (const s of scored) {
-    const key = `${s.attempt.school_name} · ${s.attempt.course_name}`;
-    courseMap.set(key, [...(courseMap.get(key) ?? []), s]);
-  }
-  const byCourse = [...courseMap.entries()].map(([label, rows]) => ({ label, scored: rows, summary: summarize(rows) }));
   return {
     filters,
+    test,
     schools,
-    attempts,
     scored,
     summary,
     bySchool,
-    byCourse,
-    alpha: cronbachAlpha(scored),
+    alpha: cronbachAlpha(scored, test.ids),
     alphaA: cronbachAlpha(
       scored,
-      scored.length ? Object.keys(scored[0].correct).filter((id) => id.startsWith("A")) : [],
+      test.items.filter((it) => it.part === "A").map((it) => it.id),
     ),
-    items: itemAnalysis(scored),
+    items: itemAnalysis(test, scored),
   };
 }

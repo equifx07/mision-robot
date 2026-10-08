@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { ITEMS } from "@/lib/items";
 import { getAnswers, getAttempt, listSchools } from "@/lib/repo";
 import { attentionStatus, isRapid, loadReference, SIGNAL, SIGNAL_LABEL, studentSignals, type SignalKey } from "@/lib/patrones";
-import { dimensionOf, fmt, levelOf, MAX_SCORE, scoreAttempts } from "@/lib/stats";
+import { dimensionOf, fmt, levelOf, scoreAttempts } from "@/lib/stats";
+import { testOf } from "@/lib/tests";
 import { TASK_NAME } from "@/lib/insights";
 import { LEVEL_TONE } from "@/lib/semaforo";
 import { Chip, HEADING } from "@/components/admin/ui";
@@ -26,11 +26,11 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
   const answers = getAnswers(id);
   const byItem = new Map(answers.map((a) => [a.item_id, a]));
   const school = listSchools().find((s) => s.id === attempt.school_id);
-  const course = school?.courses.find((c) => c.id === attempt.course_id);
+  const test = testOf(attempt.grade);
   const total = answers.filter((a) => a.is_correct === 1).length;
   const finished = attempt.status !== "in_progress";
-  const ref = loadReference();
-  const [scored] = scoreAttempts([{ ...attempt, school_name: school?.name ?? "", course_name: course?.name ?? "" }], answers);
+  const ref = loadReference(test);
+  const [scored] = scoreAttempts(test, [{ ...attempt, school_name: school?.name ?? "" }], answers);
   const sig = studentSignals(scored, ref);
   const att = attentionStatus(sig.signals.length);
   const times = (x: number) => (x >= 3 ? fmt(x, 0) : fmt(x, 1).replace(",0", ""));
@@ -50,7 +50,7 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
         : "Al final no se apuró: fue a su ritmo o más lento.",
   };
 
-  const rows = ITEMS.map((item, i) => {
+  const rows = test.items.map((item, i) => {
     const a = byItem.get(item.id);
     const dim = dimensionOf(item);
     return {
@@ -71,12 +71,12 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href="/admin/estudiantes" className="text-sm text-[#55504A] underline-offset-2 hover:underline">
+          <Link href={`/admin/estudiantes?grado=${test.grade}`} className="text-sm text-[#55504A] underline-offset-2 hover:underline">
             ← Estudiantes
           </Link>
           <h1 className={`${HEADING} m-0 text-[32px] font-semibold`}>{attempt.student_name}</h1>
           <p className="m-0 text-[15px] text-[#55504A]">
-            {school?.name ?? "–"} · {course?.name ?? "–"} · {new Date(attempt.started_at).toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short" })}
+            {school?.name ?? "–"} · {test.label} · {new Date(attempt.started_at).toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short" })}
           </p>
         </div>
         <form action={deleteAttemptAction}>
@@ -90,10 +90,10 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
         {[
           ["Estado", STATUS[attempt.status] ?? attempt.status],
-          ["Puntaje", finished ? `${total} / ${MAX_SCORE}` : `${total} hasta ahora`],
-          ["Nivel", finished ? <Chip tone={LEVEL_TONE[levelOf(total).key]}>{levelOf(total).name}</Chip> : "–"],
-          ["Parte A", `${answers.filter((a) => a.is_correct === 1 && a.item_id.startsWith("A")).length} / 20`],
-          ["Parte B", `${answers.filter((a) => a.is_correct === 1 && a.item_id.startsWith("B")).length} / 8`],
+          ["Puntaje", finished ? `${total} / ${test.max}` : `${total} hasta ahora`],
+          ["Nivel", finished ? <Chip tone={LEVEL_TONE[levelOf(test, total).key]}>{levelOf(test, total).name}</Chip> : "–"],
+          ["Parte A", `${answers.filter((a) => a.is_correct === 1 && a.item_id.startsWith("A")).length} / ${test.partA}`],
+          ["Parte B", `${answers.filter((a) => a.is_correct === 1 && a.item_id.startsWith("B")).length} / ${test.partB}`],
           ["Tiempo total", attempt.total_ms ? `${fmt(attempt.total_ms / 60000, 0)} min` : "–"],
           ["Datos", `${attempt.age ? attempt.age + " años" : "edad –"} · ${attempt.prior_exp ? EXP[attempt.prior_exp] : "exp. –"} · ${attempt.gender ? GENDER[attempt.gender] : "género –"}`],
         ].map(([k, v]) => (

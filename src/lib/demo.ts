@@ -2,7 +2,8 @@
 // para ver el panel con datos. Se marcan con device = "demo" para poder borrarlas de una vez.
 import { getDb } from "./db";
 import { ITEMS } from "./items";
-import { createAttempt, finishAttempt, listSchools, saveAnswer, TIME_LIMIT_MS } from "./repo";
+import { createAttempt, finishAttempt, listSchools, saveAnswer } from "./repo";
+import { testOf, type Grade } from "./tests";
 
 export const DEMO_DEVICE = "demo";
 
@@ -48,79 +49,73 @@ const DEMO_BUMP: Record<string, number> = { "A5.2": 1.1, B6: 0.9, "A3.1": -0.7 }
 
 export type DemoOptions = {
   schoolId: number;
-  perCourse: number;
+  grade: Grade;
+  /** Cantidad de chicos a generar. */
+  count: number;
   /** Desplazamiento de habilidad del colegio (en desvíos): 0 = promedio. */
   abilityShift?: number;
 };
 
-export function generateDemo(opts: DemoOptions): { created: number; courses: string[] } {
-  const school = listSchools().find((s) => s.id === opts.schoolId);
+export function generateDemo(opts: DemoOptions): { created: number } {
+  const school = listSchools().find((x) => x.id === opts.schoolId);
   if (!school) throw new Error("Colegio inexistente");
-  if (school.courses.length === 0) throw new Error("El colegio no tiene cursos");
+  const test = testOf(opts.grade);
+  const bankA = ITEMS.filter((it) => it.part === "A").map((it) => it.id);
   const db = getDb();
   let created = 0;
   const usedNames = new Set<string>();
-  for (const course of school.courses) {
-    for (let i = 0; i < opts.perCourse; i++) {
-      let name = `${pick(FIRST)} ${pick(LAST)}`;
-      while (usedNames.has(name)) name = `${pick(FIRST)} ${pick(LAST)}`;
-      usedNames.add(name);
-      const priorExp = pick(["nunca", "nunca", "algunas", "algunas", "siempre"]);
-      const ability = (opts.abilityShift ?? 0) + gauss() * 0.9 + (priorExp === "siempre" ? 0.5 : priorExp === "algunas" ? 0.2 : 0);
-      const attempt = createAttempt({
-        schoolId: school.id,
-        courseId: course.id,
-        studentName: name,
-        age: Math.random() < 0.8 ? 11 : 12,
-        priorExp,
-        gender: pick(["femenino", "masculino", "femenino", "masculino", "no_dice"]),
-        device: DEMO_DEVICE,
-        userAgent: "generador de datos de prueba",
-        screen: "1366x768",
-      });
-      // Ritmo propio (algunos muy lentos, que no llegan a terminar) y, en algunos, cansancio desde una misión:
-      // a partir de ahí contestan cada vez más seguido apurados, sin leer.
-      const pace = Math.random() < 0.06 ? 2.1 + Math.random() * 0.5 : Math.exp(gauss() * 0.25);
-      const tiresAt = Math.random() < 0.18 ? 13 + Math.floor(Math.random() * 12) : Infinity;
-      const tutorialMs = Math.round((6 + Math.random() * 6) * 60000);
-      let totalItemMs = 0;
-      let timedOut = false;
-      ITEMS.forEach((item, idx) => {
-        if (timedOut) return;
-        const difficulty = (item.part === "A" ? -1.2 + (idx / 19) * 2.6 : 0.2 + gauss() * 0.3) + (DEMO_BUMP[item.id] ?? 0);
-        const rushed = idx >= tiresAt && Math.random() < Math.min(0.8, 0.35 + 0.06 * (idx - tiresAt));
-        let correct: boolean;
-        let timeMs: number;
-        if (rushed) {
-          correct = Math.random() < 0.25;
-          timeMs = Math.round((1.2 + Math.random() * 2.6) * 1000);
-        } else {
-          correct = Math.random() < 0.25 + 0.75 * sigmoid(1.4 * (ability - difficulty));
-          const base = item.part === "A" ? 24 + 14 * (difficulty + 1.2) : 44;
-          timeMs = Math.round(Math.max(6, base * pace * Math.exp(gauss() * 0.35) * (correct ? 1 : 1.15)) * 1000);
-        }
-        if (tutorialMs + totalItemMs + timeMs > TIME_LIMIT_MS) {
-          timedOut = true;
-          return;
-        }
-        totalItemMs += timeMs;
-        saveAnswer(attempt.id, item.id, correct ? item.correct : pick([1, 2, 3]), timeMs, null, null);
-      });
-      finishAttempt(attempt.id, timedOut ? "timed_out" : "finished");
-      const started = schoolDay();
-      const durationMs = timedOut ? TIME_LIMIT_MS : totalItemMs + tutorialMs; // + tutorial y prácticas
-      const finished = new Date(started.getTime() + durationMs);
-      db.prepare("UPDATE attempts SET started_at = ?, finished_at = ?, total_ms = ? WHERE id = ?").run(
-        started.toISOString(),
-        finished.toISOString(),
-        durationMs,
-        attempt.id,
-      );
-      db.prepare("UPDATE answers SET shown_at = NULL, answered_at = NULL WHERE attempt_id = ?").run(attempt.id);
-      created++;
-    }
+  for (let i = 0; i < opts.count; i++) {
+    let name = `${pick(FIRST)} ${pick(LAST)}`;
+    while (usedNames.has(name)) name = `${pick(FIRST)} ${pick(LAST)}`;
+    usedNames.add(name);
+    const priorExp = pick(["nunca", "nunca", "algunas", "algunas", "siempre"]);
+    // Los de 4.º resuelven con menos soltura las mismas misiones.
+    const gradeShift = test.grade === "4" ? -0.6 : 0;
+    const ability = (opts.abilityShift ?? 0) + gradeShift + gauss() * 0.9 + (priorExp === "siempre" ? 0.5 : priorExp === "algunas" ? 0.2 : 0);
+    const attempt = createAttempt({
+      schoolId: school.id,
+      grade: test.grade,
+      studentName: name,
+      age: test.grade === "4" ? (Math.random() < 0.8 ? 9 : 10) : Math.random() < 0.8 ? 11 : 12,
+      priorExp,
+      gender: pick(["femenino", "masculino", "femenino", "masculino", "no_dice"]),
+      device: DEMO_DEVICE,
+      userAgent: "generador de datos de prueba",
+      screen: "1366x768",
+    });
+    // Ritmo propio (algunos muy lentos) y, en algunos, cansancio desde una misión: a partir de ahí
+    // contestan cada vez más seguido apurados, sin leer. No hay límite de tiempo.
+    const n = test.items.length;
+    const pace = Math.random() < 0.06 ? 2.1 + Math.random() * 0.5 : Math.exp(gauss() * 0.25);
+    const tiresAt = Math.random() < 0.18 ? Math.round(n * 0.45) + Math.floor(Math.random() * Math.round(n * 0.45)) : Infinity;
+    const tutorialMs = Math.round((6 + Math.random() * 6) * 60000);
+    let totalItemMs = 0;
+    test.items.forEach((item, idx) => {
+      const bankPos = bankA.indexOf(item.id);
+      const difficulty = (item.part === "A" ? -1.2 + (bankPos / 19) * 2.6 : 0.2 + gauss() * 0.3) + (DEMO_BUMP[item.id] ?? 0);
+      const rushed = idx >= tiresAt && Math.random() < Math.min(0.8, 0.35 + 0.06 * (idx - tiresAt));
+      let correct: boolean;
+      let timeMs: number;
+      if (rushed) {
+        correct = Math.random() < 0.25;
+        timeMs = Math.round((1.2 + Math.random() * 2.6) * 1000);
+      } else {
+        correct = Math.random() < 0.25 + 0.75 * sigmoid(1.4 * (ability - difficulty));
+        const base = item.part === "A" ? 24 + 14 * (difficulty + 1.2) : 44;
+        timeMs = Math.round(Math.max(6, base * pace * Math.exp(gauss() * 0.35) * (correct ? 1 : 1.15)) * 1000);
+      }
+      totalItemMs += timeMs;
+      saveAnswer(attempt.id, item.id, correct ? item.correct : pick([1, 2, 3]), timeMs, null, null);
+    });
+    finishAttempt(attempt.id);
+    const started = schoolDay();
+    const durationMs = totalItemMs + tutorialMs; // + tutorial y prácticas
+    const finished = new Date(started.getTime() + durationMs);
+    db.prepare("UPDATE attempts SET started_at = ?, finished_at = ?, total_ms = ? WHERE id = ?").run(started.toISOString(), finished.toISOString(), durationMs, attempt.id);
+    db.prepare("UPDATE answers SET shown_at = NULL, answered_at = NULL WHERE attempt_id = ?").run(attempt.id);
+    created++;
   }
-  return { created, courses: school.courses.map((c) => c.name) };
+  return { created };
 }
 
 export function deleteDemo(): number {

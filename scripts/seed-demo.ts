@@ -1,11 +1,12 @@
-// Genera pruebas de demostración en la base local (o las borra con --clean).
-// Uso: npx tsx scripts/seed-demo.ts [--clean] [--n 15]
+// Genera pruebas de demostración en la base local, de 4.º y de 6.º (o las borra con --clean).
+// Uso: npx tsx scripts/seed-demo.ts [--clean] [--n 30]
 import { deleteDemo, generateDemo } from "../src/lib/demo";
-import { createCourse, createSchool, listSchools } from "../src/lib/repo";
+import { createSchool, listSchools } from "../src/lib/repo";
+import { GRADES } from "../src/lib/tests";
 
 const args = process.argv.slice(2);
 const clean = args.includes("--clean");
-const perCourse = Number(args[args.indexOf("--n") + 1]) || 15;
+const count = Number(args[args.indexOf("--n") + 1]) || 30;
 
 if (clean) {
   console.log(`Borradas ${deleteDemo()} pruebas de demo.`);
@@ -21,17 +22,12 @@ const DEMO_SCHOOLS: { name: string; ability: number }[] = [
 for (const s of DEMO_SCHOOLS) {
   if (!listSchools().some((x) => x.name === s.name)) createSchool(s.name);
 }
-for (const s of listSchools()) {
-  if (s.courses.length === 0) {
-    createCourse(s.id, "6.º A");
-    createCourse(s.id, "6.º B");
-  }
-}
 
 let total = 0;
 for (const s of listSchools()) {
   const demo = DEMO_SCHOOLS.find((d) => d.name === s.name);
-  const r = generateDemo({ schoolId: s.id, perCourse, abilityShift: demo?.ability ?? 0 });
-  total += r.created;
+  if (!demo) continue;
+  for (const grade of GRADES) total += generateDemo({ schoolId: s.id, grade, count, abilityShift: demo.ability }).created;
 }
-console.log(`Creadas ${total} pruebas de demo en ${listSchools().length} colegios.`);
+console.log(`Creadas ${total} pruebas de demo (4.º y 6.º) en ${DEMO_SCHOOLS.length} colegios.`);
+process.exit(0);

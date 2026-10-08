@@ -39,6 +39,27 @@ Tipos de tarea: **S** secuenciar (elegir el programa completo), **C** completar 
 
 ---
 
+## Versión 1.0 (2026-10-07): dos pruebas, 4.º y 6.º grado
+
+El banco sigue siendo el mismo (`src/lib/items-a.ts`, `items-b.ts`). Las pruebas toman misiones del banco, en el orden del banco (`src/lib/tests.ts`). La selección la hizo el equipo misión por misión (https://claude.ai/artifact/1ydhSLJ9hvmK8xas1tSuiy).
+
+| Prueba | Versión | Misiones | Parte A | Parte B |
+| --- | --- | --- | --- | --- |
+| 4.º grado | epc4-v1.0 | 21: A1.1, A1.2, A2.1–A4.3, A5.1, A5.2, A6.1, A6.3, A7.1, B2, B4, B5, B7, B8 | 16 | 5 |
+| 6.º grado | epc6-v1.0 | 25: A2.1–A4.3, A5.1–A6.3, A7.1, A7.2, B1–B8 | 17 | 8 |
+
+- A7.3 (comparar programas) quedó fuera de las dos. Ninguna prueba tiene misiones de comparar.
+- **Inicio:** antes de los datos, el chico elige si es de 4.º o de 6.º, y eso define la prueba. No hay cursos: el grado reemplaza al curso, y se compara el 4.º de un colegio con el 4.º de otro (lo mismo con 6.º).
+- **Tiempo:** no hay límite. Se muestra arriba el tiempo que pasó y se guardan el total y el de cada misión. La prueba nunca se corta.
+- **Niveles (provisorios):** los mismos cortes que con 28 misiones (0–9, 10–16, 17–22 y 23–28), llevados en proporción:
+  - 4.º: Inicial 0–7, En desarrollo 8–12, Logrado 13–16, Avanzado 17–21.
+  - 6.º: Inicial 0–8, En desarrollo 9–14, Logrado 15–20, Avanzado 21–25.
+- **Tutorial:** cada explicación está anclada a una misión del banco. Si esa misión no está en la prueba, la explicación se muestra antes de la siguiente misión que sí está. Por ejemplo, 6.º ve la explicación de pintar antes de A2.1 y 4.º ve la de lógica antes de B2.
+- **Panel:** se elige 4.º o 6.º en el menú lateral; nunca se mezclan. La exportación es por grado.
+- **Base de datos:** esquema 2. Al migrar se borraron todas las pruebas anteriores, que eran de prueba. Los colegios quedan.
+
+---
+
 ## Versión 0.3 (2026-10-02): completar y arreglar más evidentes
 
 Los chicos no terminaban de entender qué había que hacer en las misiones de completar y de arreglar, ni dónde actuaba su elección. Se probaron tres opciones de diseño (https://claude.ai/artifact/XENbQzfNy957dsTuRzK9m4). Se eligió la C para completar y la A para arreglar. El contenido de los ítems no cambió (mismos programas, opciones y respuesta correcta); cambió la presentación y la consigna.

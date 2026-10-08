@@ -1,16 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ItemView } from "@/components/ItemView";
 import { Robot } from "@/components/MapView";
 import { introScreens, practiceScreens, TutorialModal } from "@/components/Tutorial";
 import { ATTEMPT_KEY } from "@/components/StartForm";
 import { ITEMS } from "@/lib/items";
+import type { Item } from "@/lib/model";
+import { testOf, type Grade } from "@/lib/tests";
 import { PRACTICES } from "@/lib/tutorial";
 
-const INTRO_SCREENS = introScreens();
+const bankIndex = (id: string) => ITEMS.findIndex((it) => it.id === id);
 
-const TIME_LIMIT_MS = 45 * 60 * 1000;
+/**
+ * Explicaciones y prácticas que van antes de la misión `index` de la prueba. Cada práctica está anclada
+ * a una misión del banco; si esa misión no está en la prueba del grado, se muestra antes de la siguiente
+ * misión que sí está (así 6.º, que no tiene A1.2, igual ve la explicación de pintar antes de empezar).
+ */
+function practicesFor(items: Item[], index: number): string[] {
+  const lo = index === 0 ? -1 : bankIndex(items[index - 1].id);
+  const hi = bankIndex(items[index].id);
+  return Object.keys(PRACTICES)
+    .filter((k) => bankIndex(k) > lo && bankIndex(k) <= hi)
+    .sort((a, b) => bankIndex(a) - bankIndex(b));
+}
 
 type Phase =
   | { kind: "loading" }
@@ -21,7 +34,7 @@ type Phase =
   | { kind: "finishing" }
   | { kind: "done"; status: string };
 
-type AttemptState = { studentName: string; startedAt: string; optionOrders: Record<string, number[]> };
+type AttemptState = { studentName: string; grade: Grade; startedAt: string; optionOrders: Record<string, number[]> };
 
 /**
  * Momento en que apareció la misión actual. Se guarda en el navegador para que, si el chico recarga
@@ -52,21 +65,24 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [remainingMs, setRemainingMs] = useState<number>(TIME_LIMIT_MS);
+  const [elapsedMs, setElapsedMs] = useState<number>(0);
+  const items = useMemo(() => (attempt ? testOf(attempt.grade).items : []), [attempt]);
+  const introScreensList = useMemo(() => introScreens(items.length || undefined), [items.length]);
   const shown = useRef<Shown | null>(null);
+  const [resume, setResume] = useState<Set<string> | null>(null);
   const finishing = useRef(false);
 
   const finish = useCallback(
-    async (why: "done" | "timeout") => {
+    async () => {
       if (finishing.current) return;
       finishing.current = true;
       setPhase({ kind: "finishing" });
       try {
         const res = await fetch(`/api/attempts/${attemptId}/finish`, { method: "POST" });
         const data = await res.json();
-        setPhase({ kind: "done", status: data.status ?? (why === "timeout" ? "timed_out" : "finished") });
+        setPhase({ kind: "done", status: data.status ?? "finished" });
       } catch {
-        setPhase({ kind: "done", status: why === "timeout" ? "timed_out" : "finished" });
+        setPhase({ kind: "done", status: "finished" });
       }
       try {
         localStorage.removeItem(ATTEMPT_KEY);
@@ -80,12 +96,12 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
 
   const goToItem = useCallback(
     (index: number, skipPractice = false) => {
-      if (index >= ITEMS.length) {
-        void finish("done");
+      if (index >= items.length) {
+        void finish();
         return;
       }
-      const item = ITEMS[index];
-      if (!skipPractice && PRACTICES[item.id]) {
+      const item = items[index];
+      if (!skipPractice && practicesFor(items, index).length > 0) {
         setPhase({ kind: "practice", itemIndex: index, sub: 0 });
         return;
       }
@@ -95,7 +111,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       setPhase({ kind: "item", itemIndex: index });
       window.scrollTo({ top: 0 });
     },
-    [finish, attemptId],
+    [finish, attemptId, items],
   );
 
   // Carga inicial del intento
@@ -108,19 +124,14 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       })
       .then((d) => {
         if (cancelled) return;
-        setAttempt({ studentName: d.studentName, startedAt: d.startedAt, optionOrders: d.optionOrders });
+        setAttempt({ studentName: d.studentName, grade: d.grade, startedAt: d.startedAt, optionOrders: d.optionOrders });
         if (d.status !== "in_progress") {
           setPhase({ kind: "done", status: d.status });
           return;
         }
         const done = new Set<string>((d.answers as { itemId: string }[]).map((a) => a.itemId));
         setAnswered(done);
-        if (done.size === 0) setPhase({ kind: "intro", step: 0 });
-        else {
-          const next = ITEMS.findIndex((it) => !done.has(it.id));
-          if (next < 0) void finish("done");
-          else goToItem(next);
-        }
+        setResume(done);
       })
       .catch((err) => {
         if (!cancelled) setPhase({ kind: "error", message: err instanceof Error ? err.message : "Error" });
@@ -130,18 +141,26 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     };
   }, [attemptId, finish, goToItem]);
 
-  // Cronómetro global
+  // Al cargar el intento (ya con las misiones de su grado), arranca la explicación o sigue donde quedó.
+  useEffect(() => {
+    if (!resume || !attempt || items.length === 0) return;
+    setResume(null);
+    if (resume.size === 0) setPhase({ kind: "intro", step: 0 });
+    else {
+      const next = items.findIndex((it) => !resume.has(it.id));
+      if (next < 0) void finish();
+      else goToItem(next);
+    }
+  }, [resume, attempt, items, finish, goToItem]);
+
+  // Reloj: muestra el tiempo que pasó desde que empezó. No hay límite: la prueba nunca se corta.
   useEffect(() => {
     if (!attempt) return;
-    const tick = () => {
-      const left = TIME_LIMIT_MS - (Date.now() - Date.parse(attempt.startedAt));
-      setRemainingMs(left);
-      if (left <= 0 && (phase.kind === "item" || phase.kind === "practice" || phase.kind === "intro")) void finish("timeout");
-    };
+    const tick = () => setElapsedMs(Math.max(0, Date.now() - Date.parse(attempt.startedAt)));
     tick();
-    const id = window.setInterval(tick, 1000);
+    const id = window.setInterval(tick, 15000);
     return () => window.clearInterval(id);
-  }, [attempt, phase.kind, finish]);
+  }, [attempt]);
 
   // Aviso al cerrar la pestaña durante la prueba
   useEffect(() => {
@@ -155,7 +174,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
 
   async function confirm() {
     if (phase.kind !== "item" || selected === null || saving) return;
-    const item = ITEMS[phase.itemIndex];
+    const item = items[phase.itemIndex];
     setSaving(true);
     setSaveError(null);
     try {
@@ -184,8 +203,8 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     }
   }
 
-  const minutes = Math.max(0, Math.ceil(remainingMs / 60000));
-  const total = ITEMS.length;
+  const minutes = Math.floor(elapsedMs / 60000);
+  const total = items.length;
 
   const header = (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -207,7 +226,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
           </div>
         )}
         {attempt && phase.kind !== "done" && phase.kind !== "loading" && (
-          <div className={`whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold ${minutes <= 5 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"}`} title="Tiempo restante">
+          <div className="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600" title="Tiempo que pasó desde que empezaste (no hay límite)">
             ⏱ {minutes} min
           </div>
         )}
@@ -229,14 +248,14 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     );
   else if (phase.kind === "intro") {
     // Explicación inicial: ventana emergente violeta sobre la app vacía.
-    const last = phase.step === INTRO_SCREENS.length - 1;
+    const last = phase.step === introScreensList.length - 1;
     body = (
       <>
         <div className="min-h-[calc(100vh-52px)]" />
         <TutorialModal
-          screen={INTRO_SCREENS[phase.step]}
+          screen={introScreensList[phase.step]}
           screenKey={`intro-${phase.step}`}
-          step={{ index: phase.step, total: INTRO_SCREENS.length }}
+          step={{ index: phase.step, total: introScreensList.length }}
           note="La prueba todavía no empezó. Nada de esto cuenta."
           onBack={phase.step > 0 ? () => setPhase({ kind: "intro", step: phase.step - 1 }) : undefined}
           onNext={() => (last ? goToItem(0) : setPhase({ kind: "intro", step: phase.step + 1 }))}
@@ -246,8 +265,8 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     );
   } else if (phase.kind === "practice") {
     // Bloque nuevo o formato nuevo antes de una misión: la misma ventana violeta.
-    const item = ITEMS[phase.itemIndex];
-    const screens = practiceScreens(PRACTICES[item.id]);
+    const item = items[phase.itemIndex];
+    const screens = practicesFor(items, phase.itemIndex).flatMap((k) => practiceScreens(PRACTICES[k]));
     const sub = Math.min(phase.sub, screens.length - 1);
     const last = sub === screens.length - 1;
     body = (
@@ -266,7 +285,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       </>
     );
   } else if (phase.kind === "item") {
-    const item = ITEMS[phase.itemIndex];
+    const item = items[phase.itemIndex];
     body = (
       <div className="mx-auto max-w-[1320px] px-4 pb-24 pt-4">
         <ItemView
@@ -295,15 +314,13 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     );
   } else if (phase.kind === "finishing") body = <p className="p-10 text-center text-slate-500">Guardando tu misión…</p>;
   else if (phase.kind === "done") {
-    const timedOut = phase.status === "timed_out";
     body = (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 p-10 text-center">
         <svg width="110" height="110" viewBox="-46 -48 92 92" aria-hidden>
-          <Robot x={0} y={0} scale={1.55} state={phase.status === "timed_out" ? "normal" : "happy"} />
+          <Robot x={0} y={0} scale={1.55} state="happy" />
         </svg>
-        <h2 className="text-3xl font-black text-slate-800">{timedOut ? "Se terminó el tiempo" : "¡Misión cumplida!"}</h2>
+        <h2 className="text-3xl font-black text-slate-800">¡Misión cumplida!</h2>
         <p className="text-lg text-slate-700">
-          {timedOut ? "Guardamos todo lo que respondiste. " : ""}
           ¡Muchas gracias por participar{attempt ? `, ${attempt.studentName.split(" ")[0]}` : ""}!
         </p>
         <p className="text-slate-500">Ya podés cerrar esta ventana y avisarle a tu docente que terminaste.</p>

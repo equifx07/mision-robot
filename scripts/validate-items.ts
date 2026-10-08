@@ -4,6 +4,7 @@ import { ITEMS_A } from "../src/lib/items-a";
 import { ITEMS_B } from "../src/lib/items-b";
 import { simulateOption } from "../src/lib/sim";
 import { fixRows } from "../src/lib/fixes";
+import { TESTS } from "../src/lib/tests";
 
 let problems = 0;
 const letters = ["a", "b", "c", "d"];
@@ -33,6 +34,9 @@ for (const item of ITEMS_B) {
   if (!good) problems++;
   console.log(`${good ? "OK " : "!! "} ${item.id.padEnd(5)} ${item.practice.padEnd(15)} correcta=${letters[item.correct]}`);
 }
+
+// Las dos pruebas se arman en tests.ts (si una misión no existe en el banco, falla al importar).
+for (const t of Object.values(TESTS)) console.log(`\nPrueba de ${t.grade}.º: ${t.max} misiones (${t.partA} de robot y ${t.partB} de lógica). Niveles: ${t.levels.map((l) => `${l.name} ${l.min}-${l.max}`).join(", ")}`);
 
 console.log(problems === 0 ? "\nTodos los ítems son válidos." : `\n${problems} problema(s) encontrados.`);
 process.exit(problems === 0 ? 0 : 1);

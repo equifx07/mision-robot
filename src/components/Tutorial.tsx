@@ -37,7 +37,9 @@ export type GuideScreen = {
   facts?: Fact[];
 };
 
-export function introScreens(): GuideScreen[] {
+/** Pantallas de la explicación inicial. `count`: cantidad de misiones de la prueba del chico. */
+export function introScreens(count = 25): GuideScreen[] {
+  const n = (t: string) => t.split("{n}").join(String(count));
   return INTRO.map((s) => ({
     mode: s.tryIt ? "practica" : "explicacion",
     title: s.title,
@@ -45,7 +47,7 @@ export function introScreens(): GuideScreen[] {
     demos: s.demo ? [s.demo] : undefined,
     tryIt: s.tryIt,
     legend: s.legend,
-    facts: s.facts,
+    facts: s.facts?.map((f) => ({ ...f, badge: n(f.badge), title: n(f.title), text: n(f.text) })),
   }));
 }
 

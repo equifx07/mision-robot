@@ -13,10 +13,11 @@
 // La línea se arma con los datos del grupo que se está mirando (así un colegio que rinde menos en
 // general no ve todas sus misiones "fuera de la línea"). Los umbrales de apuro, los tiempos típicos y
 // el acierto de referencia se calculan con TODAS las pruebas, para que no cambien al filtrar por colegio.
-import { ITEMS } from "./items";
+// Todo es de UNA prueba (4.º o 6.º): la referencia lleva su prueba y las funciones usan sus misiones.
 import { listAllAnswers, listAttempts } from "./repo";
 import type { Tone } from "./semaforo";
 import { mean, median, quantile, scoreAttempts, type Scored } from "./stats";
+import type { TestDef } from "./tests";
 
 export const RAPID = { share: 0.1, minMs: 3000, maxMs: 10000 };
 /** Salto mínimo (en proporción) para decir que una misión no sigue la línea. */
@@ -29,17 +30,25 @@ export const RUSHED_ERRORS = 0.3;
 /** …y al menos esta parte de las respuestas a la misión fueron apuradas. */
 const RUSHED_MIN = 0.1;
 
-/** Tercios de la prueba por posición (0-based): misiones 1–9, 10–19 y 20–28. */
-export const THIRDS = [
-  { key: "inicio", label: "Al principio", range: "misiones 1 a 9", from: 0, to: 8 },
-  { key: "medio", label: "En el medio", range: "misiones 10 a 19", from: 9, to: 18 },
-  { key: "final", label: "Al final", range: "misiones 20 a 28", from: 19, to: 27 },
-] as const;
-const thirdOf = (pos: number) => THIRDS.findIndex((t) => pos >= t.from && pos <= t.to);
+export type Third = { key: string; label: string; range: string; from: number; to: number };
+
+/** Tercios de una prueba por posición (0-based): principio, medio y final. */
+export function thirdsOf(test: TestDef): Third[] {
+  const n = test.items.length;
+  const k = Math.round(n / 3);
+  const parts = [
+    { key: "inicio", label: "Al principio", from: 0, to: k - 1 },
+    { key: "medio", label: "En el medio", from: k, to: n - k - 1 },
+    { key: "final", label: "Al final", from: n - k, to: n - 1 },
+  ];
+  return parts.map((t) => ({ ...t, range: `misiones ${t.from + 1} a ${t.to + 1}` }));
+}
+const thirdOf = (thirds: Third[], pos: number) => thirds.findIndex((t) => pos >= t.from && pos <= t.to);
 
 // ───────── Referencia (todas las pruebas terminadas) ─────────
 
 export type Reference = {
+  test: TestDef;
   n: number;
   /** Umbral de respuesta apurada por misión (ms). */
   rapidMs: Record<string, number>;
@@ -59,40 +68,41 @@ export function isRapid(ref: Reference, id: string, ms: number | null): boolean 
   return ms !== null && ms < ref.rapidMs[id];
 }
 
-/** Promedio de las vecinas (hasta 2 de cada lado, misma parte), sin la misión misma. */
-function neighbors(values: Record<string, number>, id: string): number {
-  const idx = ITEMS.findIndex((i) => i.id === id);
-  const part = ITEMS[idx].part;
+/** Promedio de las vecinas en la prueba (hasta 2 de cada lado, misma parte), sin la misión misma. */
+function neighbors(test: TestDef, values: Record<string, number>, id: string): number {
+  const items = test.items;
+  const idx = items.findIndex((i) => i.id === id);
+  const part = items[idx].part;
   const near: number[] = [];
   for (let k = idx - 2; k <= idx + 2; k++) {
-    if (k === idx || k < 0 || k >= ITEMS.length || ITEMS[k].part !== part) continue;
-    const v = values[ITEMS[k].id];
+    if (k === idx || k < 0 || k >= items.length || items[k].part !== part) continue;
+    const v = values[items[k].id];
     if (Number.isFinite(v)) near.push(v);
   }
   return near.length ? mean(near) : NaN;
 }
 
-export function buildReference(rows: Scored[]): Reference {
+export function buildReference(test: TestDef, rows: Scored[]): Reference {
   const rapidMs: Record<string, number> = {};
   const medianMs: Record<string, number> = {};
   const p: Record<string, number> = {};
-  for (const it of ITEMS) {
+  for (const it of test.items) {
     const times = rows.map((r) => timeOf(r, it.id)).filter((t): t is number => t !== null);
     const med = times.length ? median(times) : NaN;
     medianMs[it.id] = med;
     rapidMs[it.id] = Number.isFinite(med) ? Math.min(RAPID.maxMs, Math.max(RAPID.minMs, RAPID.share * med)) : RAPID.minMs;
   }
-  for (const it of ITEMS) {
+  for (const it of test.items) {
     const resp = rows.filter((r) => answered(r, it.id));
     p[it.id] = resp.length ? mean(resp.map((r) => r.correct[it.id])) : NaN;
   }
-  return { n: rows.length, rapidMs, medianMs, p };
+  return { test, n: rows.length, rapidMs, medianMs, p };
 }
 
-/** Referencia con todas las pruebas terminadas (sin filtros). */
-export function loadReference(): Reference {
-  const attempts = listAttempts().filter((a) => a.status !== "in_progress");
-  return buildReference(scoreAttempts(attempts, listAllAnswers(attempts.map((a) => a.id))));
+/** Referencia con todas las pruebas terminadas de ese grado (sin filtros de colegio). */
+export function loadReference(test: TestDef): Reference {
+  const attempts = listAttempts({ grade: test.grade }).filter((a) => a.status !== "in_progress");
+  return buildReference(test, scoreAttempts(test, attempts, listAllAnswers(attempts.map((a) => a.id))));
 }
 
 // ───────── Patrón de errores por misión ─────────
@@ -109,7 +119,7 @@ export const DIAGNOSES: Record<Diagnosis["key"], Diagnosis & { meaning: string }
 
 export type ItemPattern = {
   id: string;
-  pos: number; // 1 a 28
+  pos: number; // posición en la prueba (desde 1)
   part: "A" | "B";
   n: number; // chicos del grupo
   reached: number; // la respondieron
@@ -136,7 +146,8 @@ function significant(diff: number, base: number, n: number): boolean {
 }
 
 export function itemPatterns(rows: Scored[], ref: Reference): ItemPattern[] {
-  const base = ITEMS.map((it, i) => {
+  const test = ref.test;
+  const base = test.items.map((it, i) => {
     let reached = 0;
     let right = 0;
     let wrongCareful = 0;
@@ -159,8 +170,8 @@ export function itemPatterns(rows: Scored[], ref: Reference): ItemPattern[] {
   const errs = Object.fromEntries(base.map((b) => [b.it.id, b.err]));
   const errsCareful = Object.fromEntries(base.map((b) => [b.it.id, b.errCareful]));
   return base.map(({ it, i, reached, right, wrongCareful, rushed, rushedRight, careful, err, errCareful }) => {
-    const expected = neighbors(errs, it.id);
-    const expectedCareful = neighbors(errsCareful, it.id);
+    const expected = neighbors(test, errs, it.id);
+    const expectedCareful = neighbors(test, errsCareful, it.id);
     const jump = err - expected;
     const jumpCareful = errCareful - expectedCareful;
     const rushedShare = reached ? rushed / reached : NaN;
@@ -199,12 +210,13 @@ export function itemPatterns(rows: Scored[], ref: Reference): ItemPattern[] {
 
 /** Respuestas apuradas por tercio de la prueba: proporción y cuántas acertaron. */
 export function rushedByThird(rows: Scored[], ref: Reference): { share: number; rushed: number; answered: number }[] {
-  return THIRDS.map((t) => {
+  const items = ref.test.items;
+  return thirdsOf(ref.test).map((t) => {
     let rushed = 0;
     let total = 0;
     for (const r of rows)
       for (let k = t.from; k <= t.to; k++) {
-        const id = ITEMS[k].id;
+        const id = items[k].id;
         if (!answered(r, id)) continue;
         total++;
         if (isRapid(ref, id, timeOf(r, id))) rushed++;
@@ -219,7 +231,7 @@ export function rushedAccuracy(rows: Scored[], ref: Reference): { rushed: number
   let right = 0;
   let total = 0;
   for (const r of rows)
-    for (const it of ITEMS) {
+    for (const it of ref.test.items) {
       if (!answered(r, it.id)) continue;
       total++;
       if (isRapid(ref, it.id, timeOf(r, it.id))) {
@@ -269,12 +281,13 @@ export function studentSignals(r: Scored, ref: Reference): StudentSignals {
   const rushedIds: string[] = [];
   const adv: number[][] = [[], [], []];
   const pace: number[][] = [[], [], []];
-  ITEMS.forEach((it, pos) => {
+  const thirds = thirdsOf(ref.test);
+  ref.test.items.forEach((it, pos) => {
     if (!answered(r, it.id)) return;
     answeredN++;
     const t = timeOf(r, it.id);
     if (isRapid(ref, it.id, t)) rushedIds.push(it.id);
-    const third = thirdOf(pos);
+    const third = thirdOf(thirds, pos);
     if (Number.isFinite(ref.p[it.id])) adv[third].push(r.correct[it.id] - ref.p[it.id]);
     if (t !== null && Number.isFinite(ref.medianMs[it.id])) pace[third].push(t / ref.medianMs[it.id]);
   });
@@ -304,7 +317,7 @@ export function timeStats(xs: number[]): TimeStats {
 
 /** Segundos por misión del grupo: todos, los que acertaron y los que se equivocaron (sin apuradas). */
 export function itemTimes(rows: Scored[], ref: Reference): { id: string; all: TimeStats; right: number; wrong: number }[] {
-  return ITEMS.map((it) => {
+  return ref.test.items.map((it) => {
     const all: number[] = [];
     const right: number[] = [];
     const wrong: number[] = [];
@@ -320,15 +333,13 @@ export function itemTimes(rows: Scored[], ref: Reference): { id: string; all: Ti
 }
 
 /** Minutos de la prueba por chico: completa (con la explicación) y resolviendo misiones. */
-export function testMinutes(rows: Scored[]): { total: number[]; missions: number[]; timedOut: number } {
+export function testMinutes(rows: Scored[]): { total: number[]; missions: number[] } {
   const total: number[] = [];
   const missions: number[] = [];
-  let timedOut = 0;
   for (const r of rows) {
-    if (r.attempt.status === "timed_out") timedOut++;
     if (r.totalTimeMs && r.totalTimeMs > 0) total.push(r.totalTimeMs / 60000);
-    const sum = ITEMS.reduce((a, it) => a + (timeOf(r, it.id) ?? 0), 0);
+    const sum = Object.values(r.times).reduce<number>((acc, t) => acc + (t && t > 0 ? t : 0), 0);
     if (sum > 0) missions.push(sum / 60000);
   }
-  return { total, missions, timedOut };
+  return { total, missions };
 }

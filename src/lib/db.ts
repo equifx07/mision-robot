@@ -16,28 +16,27 @@ interface Database {
   prepare(sql: string): Statement;
 }
 
-const SCHEMA = `
+const PRAGMAS = `
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
+`;
 
+/**
+ * Esquema 2 (2026-10-07): dos pruebas (4.º y 6.º). El grado reemplaza al curso: ya no hay cursos.
+ * Al pasar del esquema 1 al 2 se borran todas las pruebas anteriores (pedido del equipo: eran de prueba).
+ */
+const SCHEMA_VERSION = 2;
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS schools (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE IF NOT EXISTS courses (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  school_id INTEGER NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (school_id, name)
-);
-
 CREATE TABLE IF NOT EXISTS attempts (
   id TEXT PRIMARY KEY,
   school_id INTEGER NOT NULL REFERENCES schools(id),
-  course_id INTEGER NOT NULL REFERENCES courses(id),
+  grade TEXT NOT NULL,
   student_name TEXT NOT NULL,
   age INTEGER,
   prior_exp TEXT,
@@ -56,6 +55,7 @@ CREATE TABLE IF NOT EXISTS attempts (
   score_b INTEGER
 );
 CREATE INDEX IF NOT EXISTS attempts_school ON attempts(school_id);
+CREATE INDEX IF NOT EXISTS attempts_grade ON attempts(grade);
 CREATE INDEX IF NOT EXISTS attempts_status ON attempts(status);
 
 CREATE TABLE IF NOT EXISTS answers (
@@ -94,7 +94,14 @@ function open(): Database {
   // Se carga por getBuiltinModule para que el bundler no intente resolver el módulo.
   const sqlite = process.getBuiltinModule("node:sqlite") as { DatabaseSync: new (p: string) => Database };
   const db = new sqlite.DatabaseSync(file);
-  db.exec(SCHEMA);
+  db.exec(PRAGMAS);
+  const version = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
+  if (version < SCHEMA_VERSION) {
+    // Migración al esquema 2: se descartan las pruebas y los cursos del esquema 1; los colegios quedan.
+    db.exec("DROP TABLE IF EXISTS answers; DROP TABLE IF EXISTS attempts; DROP TABLE IF EXISTS courses;");
+    db.exec(SCHEMA);
+    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+  } else db.exec(SCHEMA);
   return db;
 }
 

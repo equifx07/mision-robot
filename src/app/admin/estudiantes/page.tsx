@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
 import { attentionStatus, loadReference, SIGNAL_LABEL, studentSignals } from "@/lib/patrones";
 import { LEVEL_TONE } from "@/lib/semaforo";
-import { fmt, levelOf, MAX_SCORE } from "@/lib/stats";
+import { fmt, levelOf } from "@/lib/stats";
 import { C, Chip, PageHeader } from "@/components/admin/ui";
 import { FiltersBar } from "../Filters";
 
@@ -17,12 +17,12 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   const filters = parseFilters(await searchParams);
   const d = loadDashboard({ ...filters, includeUnfinished: true });
   const rows = d.scored.filter((r) => filters.includeUnfinished || r.attempt.status !== "in_progress");
-  const ref = loadReference();
-  const head = ["Nombre", "Colegio", "Curso", "Fecha", "Estado", "Total", "Parte A", "Parte B", "Nivel", "Tiempo", "Atención", "Edad", "Exp. previa", "Dispositivo"];
+  const ref = loadReference(d.test);
+  const head = ["Nombre", "Colegio", "Fecha", "Estado", "Total", "Parte A", "Parte B", "Nivel", "Tiempo", "Atención", "Edad", "Exp. previa", "Dispositivo"];
 
   return (
     <>
-      <PageHeader title="Estudiantes" subtitle="Una fila por prueba. Tocá un nombre para ver el detalle misión por misión." />
+      <PageHeader title="Estudiantes" subtitle={`Una fila por prueba de ${d.test.label}. Tocá un nombre para ver el detalle misión por misión.`} />
       <FiltersBar filters={filters} schools={d.schools} action="/admin/estudiantes" />
       <div className="overflow-x-auto rounded-[20px] border bg-white" style={{ borderColor: C.line }}>
         <table className="min-w-full text-sm">
@@ -39,7 +39,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
             {rows.map((r) => {
               const a = r.attempt;
               const finished = a.status !== "in_progress";
-              const lv = levelOf(r.total);
+              const lv = levelOf(d.test, r.total);
               const sig = studentSignals(r, ref);
               const att = attentionStatus(sig.signals.length);
               return (
@@ -50,12 +50,11 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                     </Link>
                   </td>
                   <td className="px-3 py-2.5">{a.school_name}</td>
-                  <td className="px-3 py-2.5">{a.course_name}</td>
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">{new Date(a.started_at).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</td>
                   <td className="px-3 py-2.5">{STATUS[a.status] ?? a.status}</td>
-                  <td className="px-3 py-2.5 font-semibold tabular-nums">{finished ? `${r.total}/${MAX_SCORE}` : "–"}</td>
-                  <td className="px-3 py-2.5 tabular-nums">{finished ? `${a.score_a ?? 0}/20` : "–"}</td>
-                  <td className="px-3 py-2.5 tabular-nums">{finished ? `${a.score_b ?? 0}/8` : "–"}</td>
+                  <td className="px-3 py-2.5 font-semibold tabular-nums">{finished ? `${r.total}/${d.test.max}` : "–"}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{finished ? `${a.score_a ?? 0}/${d.test.partA}` : "–"}</td>
+                  <td className="px-3 py-2.5 tabular-nums">{finished ? `${a.score_b ?? 0}/${d.test.partB}` : "–"}</td>
                   <td className="px-3 py-2.5">{finished ? <Chip tone={LEVEL_TONE[lv.key]}>{lv.name}</Chip> : "–"}</td>
                   <td className="px-3 py-2.5 tabular-nums">{a.total_ms ? `${fmt(a.total_ms / 60000, 0)} min` : "–"}</td>
                   <td className="px-3 py-2.5" title={sig.signals.map((k) => SIGNAL_LABEL[k]).join(", ") || "Sin señales de desatención"}>

@@ -3,7 +3,8 @@
 import type { SchoolGroup } from "./dashboard";
 import { dSize, FEW_DATA, itemStatus } from "./semaforo";
 import type { ItemPattern, TimeStats } from "./patrones";
-import { cohenD, DIMENSIONS, fmt, type GroupSummary, type ItemStats, LEVELS, levelOfMean, median, pct } from "./stats";
+import { cohenD, dimensionsOf, fmt, type GroupSummary, type ItemStats, levelOfMean, median, pct } from "./stats";
+import type { TestDef } from "./tests";
 
 export const TASK_NAME: Record<string, string> = { S: "Elegir el programa", C: "Completar un hueco", D: "Arreglar un error", E: "Comparar programas" };
 const TASK_SHORT: Record<string, string> = { S: "elegir", C: "completar", D: "arreglar", E: "comparar" };
@@ -14,10 +15,10 @@ const num = (x: number) => fmt(x, 2);
 
 // ───────── Resumen ─────────
 
-export function levelsInsight(s: GroupSummary, bySchool: SchoolGroup[]): string {
+export function levelsInsight(test: TestDef, s: GroupSummary, bySchool: SchoolGroup[]): string {
   if (!s.n) return "";
   const high = s.levels.logrado + s.levels.avanzado;
-  const top = [...LEVELS].sort((a, b) => s.levels[b.key] - s.levels[a.key])[0];
+  const top = [...test.levels].sort((a, b) => s.levels[b.key] - s.levels[a.key])[0];
   const parts = [`${high} de ${s.n} chicos (${pct(high / s.n)}) llegó a Logrado o Avanzado.`];
   parts.push(`El grupo más grande es ${top.name}, con ${s.levels[top.key]}.`);
   const ini = s.levels.inicial;
@@ -31,13 +32,13 @@ export function levelsInsight(s: GroupSummary, bySchool: SchoolGroup[]): string 
 
 // ───────── Comparación entre colegios ─────────
 
-export function meansInsight(groups: SchoolGroup[]): string {
+export function meansInsight(test: TestDef, groups: SchoolGroup[]): string {
   if (groups.length < 2) return groups.length ? `Hay datos de un solo colegio (${groups[0].school.name}). Sacá el filtro de colegio para comparar.` : "";
   const sorted = [...groups].sort((a, b) => b.summary.mean - a.summary.mean);
   const best = sorted[0];
   const worst = sorted[sorted.length - 1];
   const parts = [
-    `${best.school.name} tiene el promedio más alto (${fmt(best.summary.mean)}, ${levelOfMean(best.summary.mean).name}) y ${worst.school.name} el más bajo (${fmt(worst.summary.mean)}, ${levelOfMean(worst.summary.mean).name}).`,
+    `${best.school.name} tiene el promedio más alto (${fmt(best.summary.mean)}, ${levelOfMean(test, best.summary.mean).name}) y ${worst.school.name} el más bajo (${fmt(worst.summary.mean)}, ${levelOfMean(test, worst.summary.mean).name}).`,
   ];
   const overlap = best.summary.ci[0] <= worst.summary.ci[1];
   const ns = groups.map((g) => g.summary.n);
@@ -105,18 +106,10 @@ export function cohenInsight(groups: SchoolGroup[]): string {
   return shown.join(" ");
 }
 
-export function coursesInsight(courses: { label: string; summary: GroupSummary }[]): string {
-  if (courses.length < 2) return "";
-  const sorted = [...courses].sort((a, b) => b.summary.mean - a.summary.mean);
-  const best = sorted[0];
-  const worst = sorted[sorted.length - 1];
-  return `El curso con mejor promedio es ${best.label} (${fmt(best.summary.mean)}) y el más bajo, ${worst.label} (${fmt(worst.summary.mean)}). Con pocos chicos por curso, las diferencias son orientativas.`;
-}
-
 // ───────── Conceptos y prácticas ─────────
 
-export function dimsInsight(s: GroupSummary, groups: SchoolGroup[]): string {
-  const dims = DIMENSIONS.filter((d) => Number.isFinite(s.dims[d.key]));
+export function dimsInsight(test: TestDef, s: GroupSummary, groups: SchoolGroup[]): string {
+  const dims = dimensionsOf(test).filter((d) => Number.isFinite(s.dims[d.key]));
   if (!dims.length) return "";
   const sorted = [...dims].sort((a, b) => s.dims[b.key] - s.dims[a.key]);
   const top = sorted[0];
@@ -200,16 +193,16 @@ export function itemsQualityInsight(items: ItemStats[], n: number): string {
 
 export type Highlight = { tone: "bien" | "bajo" | "intermedio" | "neutro" | "critico" | "muybien" | "regular"; badge: string; text: string; href: string; cta: string };
 
-export function highlights(s: GroupSummary, groups: SchoolGroup[], items: ItemStats[]): Highlight[] {
+export function highlights(test: TestDef, s: GroupSummary, groups: SchoolGroup[], items: ItemStats[]): Highlight[] {
   const out: Highlight[] = [];
   if (groups.length > 1) {
     const best = [...groups].sort((a, b) => b.summary.mean - a.summary.mean)[0];
-    const lv = levelOfMean(best.summary.mean);
-    out.push({ tone: lv.key === "avanzado" ? "muybien" : lv.key === "logrado" ? "bien" : lv.key === "desarrollo" ? "intermedio" : "bajo", badge: "Mejor promedio", text: `${best.school.name} tiene el promedio más alto: ${fmt(best.summary.mean)} de 28, nivel ${lv.name}.`, href: "/admin/comparacion", cta: "Ver comparación entre colegios" });
+    const lv = levelOfMean(test, best.summary.mean);
+    out.push({ tone: lv.key === "avanzado" ? "muybien" : lv.key === "logrado" ? "bien" : lv.key === "desarrollo" ? "intermedio" : "bajo", badge: "Mejor promedio", text: `${best.school.name} tiene el promedio más alto: ${fmt(best.summary.mean)} de ${test.max}, nivel ${lv.name}.`, href: "/admin/comparacion", cta: "Ver comparación entre colegios" });
   } else if (groups.length === 1) {
     out.push({ tone: "neutro", badge: "Un solo colegio", text: `Con estos filtros hay datos de un solo colegio: ${groups[0].school.name}.`, href: "/admin/comparacion", cta: "Ver comparación entre colegios" });
   }
-  const dims = DIMENSIONS.filter((d) => Number.isFinite(s.dims[d.key])).sort((a, b) => s.dims[a.key] - s.dims[b.key]);
+  const dims = dimensionsOf(test).filter((d) => Number.isFinite(s.dims[d.key])).sort((a, b) => s.dims[a.key] - s.dims[b.key]);
   if (dims.length >= 2) {
     const v = s.dims[dims[0].key];
     out.push({ tone: v < 0.3 ? "critico" : v < 0.45 ? "bajo" : v < 0.6 ? "regular" : "intermedio", badge: "Lo que más cuesta", text: `Lo que más cuesta: ${dims[0].label} (${pct(v)}) y ${dims[1].label} (${pct(s.dims[dims[1].key])}).`, href: "/admin/conceptos", cta: "Ver conceptos y prácticas" });
@@ -267,7 +260,7 @@ export function thinkingInsight(patterns: ItemPattern[]): string {
   const noReach = patterns.filter((p) => p.n && p.noReach / p.n >= 0.1);
   if (noReach.length) {
     const most = Math.max(...noReach.map((p) => p.noReach / p.n));
-    parts.push(`${list(noReach.map((p) => p.id))} ${noReach.length === 1 ? "tiene" : "tienen"} chicos que no llegaron porque se terminó el tiempo (hasta ${pct(most)}).`);
+    parts.push(`${list(noReach.map((p) => p.id))} ${noReach.length === 1 ? "tiene" : "tienen"} chicos que no la respondieron (hasta ${pct(most)}).`);
   }
   return parts.join(" ");
 }
@@ -309,22 +302,19 @@ export function signalsInsight(rows: { name: string; n: number; many: number }[]
 
 // ───────── Tiempos ─────────
 
-type TimeGroup = { name: string; n: number; total: TimeStats; missions: TimeStats; timedOut: number };
+type TimeGroup = { name: string; n: number; total: TimeStats; missions: TimeStats };
 
 export function totalTimeInsight(all: TimeGroup, bySchool: TimeGroup[]): string {
   if (!all.total.n) return "";
   const parts = [
     `El chico típico tardó ${fmt(all.total.median, 0)} minutos en toda la prueba; la mitad central, de ${fmt(all.total.q1, 0)} a ${fmt(all.total.q3, 0)}.`,
     `Resolviendo misiones, ${fmt(all.missions.median, 0)} minutos: el resto se va en la explicación y las prácticas.`,
-    all.timedOut ? `${all.timedOut} de ${all.n} (${pct(all.timedOut / all.n)}) se ${all.timedOut === 1 ? "quedó" : "quedaron"} sin tiempo.` : "Todos terminaron antes de los 45 minutos.",
   ];
   const valid = bySchool.filter((s) => s.total.n >= 2);
   if (valid.length > 1) {
     const slow = [...valid].sort((a, b) => b.total.median - a.total.median)[0];
     const fast = [...valid].sort((a, b) => a.total.median - b.total.median)[0];
     if (slow.total.median - fast.total.median >= 3) parts.push(`${slow.name} es el más lento (${fmt(slow.total.median, 0)} min) y ${fast.name} el más rápido (${fmt(fast.total.median, 0)} min).`);
-    const out = valid.filter((s) => s.timedOut > 0).sort((a, b) => b.timedOut / b.n - a.timedOut / a.n);
-    if (out.length && all.timedOut > 1) parts.push(`Los que no terminaron son de ${list(out.map((s) => `${s.name} (${s.timedOut})`))}.`);
   }
   return parts.join(" ");
 }

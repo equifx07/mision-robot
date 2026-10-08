@@ -1,15 +1,19 @@
 // Gráficos del panel en HTML (se dibujan en el servidor), con la escala semáforo.
 // Cada marca lleva su número o etiqueta y un title para ver el detalle al pasar el mouse.
 import { LEVEL_TONE, TONES, dStyle, pctTone } from "@/lib/semaforo";
-import { cohenD, fmt, type GroupSummary, LEVELS, levelOfMean, pct } from "@/lib/stats";
+import { cohenD, fmt, type GroupSummary, levelOfMean, pct } from "@/lib/stats";
+import type { TestDef } from "@/lib/tests";
 import { C } from "./ui";
 
 const toneOfLevel = (key: string) => TONES[LEVEL_TONE[key]];
 const pctPos = (v: number, max: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
+/** Marcas del eje de puntaje: 0, un cuarto, la mitad, tres cuartos y el máximo de la prueba. */
+const scoreTicks = (max: number) => [...new Set([0, Math.round(max / 4), Math.round(max / 2), Math.round((3 * max) / 4), max])];
 
 // ───────── Niveles ─────────
 
-export function LevelLegend() {
+export function LevelLegend({ test }: { test: TestDef }) {
+  const LEVELS = test.levels;
   return (
     <div className="flex flex-wrap gap-x-5 gap-y-2">
       {LEVELS.map((l) => (
@@ -23,7 +27,8 @@ export function LevelLegend() {
 }
 
 /** Barra 100% con la cantidad de chicos en cada nivel. */
-export function LevelStack({ levels, n, height = 48 }: { levels: Record<string, number>; n: number; height?: number }) {
+export function LevelStack({ test, levels, n, height = 48 }: { test: TestDef; levels: Record<string, number>; n: number; height?: number }) {
+  const LEVELS = test.levels;
   return (
     <div className="flex gap-0.5 overflow-hidden rounded-[10px]" style={{ height }}>
       {LEVELS.filter((l) => levels[l.key] > 0).map((l) => {
@@ -43,14 +48,14 @@ export function LevelStack({ levels, n, height = 48 }: { levels: Record<string, 
   );
 }
 
-export function LevelStackRows({ rows }: { rows: { label: string; n: number; levels: Record<string, number> }[] }) {
+export function LevelStackRows({ test, rows }: { test: TestDef; rows: { label: string; n: number; levels: Record<string, number> }[] }) {
   return (
     <div className="flex flex-col gap-3.5">
       {rows.map((r) => (
         <div key={r.label} className="flex items-center gap-3">
           <span className="w-[170px] shrink-0 text-[15px] font-bold leading-tight">{r.label}</span>
           <div className="min-w-0 flex-1">
-            <LevelStack levels={r.levels} n={r.n} height={40} />
+            <LevelStack test={test} levels={r.levels} n={r.n} height={40} />
           </div>
           <span className="w-[76px] shrink-0 text-[13px]" style={{ color: C.muted }}>
             {r.n} {r.n === 1 ? "chico" : "chicos"}
@@ -58,14 +63,16 @@ export function LevelStackRows({ rows }: { rows: { label: string; n: number; lev
         </div>
       ))}
       <div className="pt-1.5">
-        <LevelLegend />
+        <LevelLegend test={test} />
       </div>
     </div>
   );
 }
 
 /** Histograma del puntaje total, cada barra pintada según el nivel de ese puntaje. */
-export function ScoreHistogram({ scores, max }: { scores: number[]; max: number }) {
+export function ScoreHistogram({ scores, test }: { scores: number[]; test: TestDef }) {
+  const LEVELS = test.levels;
+  const max = test.max;
   const counts = Array.from({ length: max + 1 }, (_, k) => scores.filter((s) => s === k).length);
   const top = Math.max(1, ...counts);
   const ticks = top <= 4 ? Array.from({ length: top + 1 }, (_, i) => top - i) : [top, Math.round((top * 2) / 3), Math.round(top / 3), 0];
@@ -107,7 +114,9 @@ export function ScoreHistogram({ scores, max }: { scores: number[]; max: number 
 
 // ───────── Promedios con rango probable ─────────
 
-function LevelBands({ max }: { max: number }) {
+function LevelBands({ test }: { test: TestDef }) {
+  const LEVELS = test.levels;
+  const max = test.max;
   return (
     <>
       {LEVELS.map((l, i) => {
@@ -119,7 +128,9 @@ function LevelBands({ max }: { max: number }) {
   );
 }
 
-export function MeanBars({ rows, max }: { rows: { label: string; sub: string; mean: number; ci: [number, number]; separate?: boolean }[]; max: number }) {
+export function MeanBars({ rows, test }: { rows: { label: string; sub: string; mean: number; ci: [number, number]; separate?: boolean }[]; test: TestDef }) {
+  const LEVELS = test.levels;
+  const max = test.max;
   return (
     <div className="flex flex-col">
       <div className="flex gap-3 pb-1">
@@ -137,7 +148,7 @@ export function MeanBars({ rows, max }: { rows: { label: string; sub: string; me
         <span className="w-[170px] shrink-0" />
       </div>
       {rows.map((r) => {
-        const lv = levelOfMean(r.mean);
+        const lv = levelOfMean(test, r.mean);
         const t = toneOfLevel(lv.key);
         return (
           <div key={r.label} className="flex items-center gap-3" style={{ height: 58, borderBottom: r.separate ? `2px solid ${C.line}` : undefined }}>
@@ -148,7 +159,7 @@ export function MeanBars({ rows, max }: { rows: { label: string; sub: string; me
               </span>
             </div>
             <div className="relative h-full min-w-0 flex-1" title={`${r.label}: promedio ${fmt(r.mean)}, rango probable ${fmt(r.ci[0])} a ${fmt(r.ci[1])}`}>
-              <LevelBands max={max} />
+              <LevelBands test={test} />
               <div className="absolute left-0 rounded-r-md" style={{ top: 17, height: 24, width: pctPos(r.mean, max), background: t.fill }} />
               <div className="absolute h-0.5" style={{ top: 28, left: pctPos(r.ci[0], max), width: pctPos(r.ci[1] - r.ci[0], max), background: C.ink }} />
               <div className="absolute w-0.5" style={{ top: 22, height: 14, left: pctPos(r.ci[0], max), background: C.ink }} />
@@ -165,7 +176,7 @@ export function MeanBars({ rows, max }: { rows: { label: string; sub: string; me
       <div className="flex gap-3 pt-1.5">
         <span className="w-[170px] shrink-0" />
         <div className="relative h-[18px] min-w-0 flex-1 text-xs" style={{ color: C.muted }}>
-          {[0, 7, 14, 21, 28].map((v) => (
+          {scoreTicks(max).map((v) => (
             <span key={v} className="absolute -translate-x-1/2" style={{ left: pctPos(v, max) }}>
               {v}
             </span>
@@ -190,12 +201,13 @@ export function MeanBars({ rows, max }: { rows: { label: string; sub: string; me
 
 // ───────── Qué tan parejos (cajas) ─────────
 
-export function SpreadBoxes({ rows, max }: { rows: { label: string; s: GroupSummary }[]; max: number }) {
+export function SpreadBoxes({ rows, test }: { rows: { label: string; s: GroupSummary }[]; test: TestDef }) {
+  const max = test.max;
   return (
     <div className="flex flex-col">
       {rows.map((r) => {
         const s = r.s;
-        const t = toneOfLevel(levelOfMean(s.median).key);
+        const t = toneOfLevel(levelOfMean(test, s.median).key);
         return (
           <div key={r.label} className="flex items-center gap-3" style={{ height: 58 }}>
             <div className="flex w-[170px] shrink-0 flex-col">
@@ -208,7 +220,7 @@ export function SpreadBoxes({ rows, max }: { rows: { label: string; s: GroupSumm
               className="relative h-full min-w-0 flex-1"
               title={`${r.label}: mínimo ${fmt(s.min, 0)}, la mitad central de ${fmt(s.q1, 0)} a ${fmt(s.q3, 0)}, mediana ${fmt(s.median, 1)}, máximo ${fmt(s.max, 0)}`}
             >
-              <LevelBands max={max} />
+              <LevelBands test={test} />
               <div className="absolute h-0.5" style={{ top: 28, left: pctPos(s.min, max), width: pctPos(s.max - s.min, max), background: C.ink2 }} />
               <div className="absolute w-0.5" style={{ top: 20, height: 18, left: pctPos(s.min, max), background: C.ink2 }} />
               <div className="absolute w-0.5" style={{ top: 20, height: 18, left: `calc(${pctPos(s.max, max)} - 2px)`, background: C.ink2 }} />
@@ -224,7 +236,7 @@ export function SpreadBoxes({ rows, max }: { rows: { label: string; s: GroupSumm
       <div className="flex gap-3 pt-1.5">
         <span className="w-[170px] shrink-0" />
         <div className="relative h-[18px] min-w-0 flex-1 text-xs" style={{ color: C.muted }}>
-          {[0, 7, 14, 21, 28].map((v) => (
+          {scoreTicks(max).map((v) => (
             <span key={v} className="absolute -translate-x-1/2" style={{ left: pctPos(v, max) }}>
               {v}
             </span>

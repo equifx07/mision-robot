@@ -120,8 +120,9 @@ export const INTRO: TutorialStep[] = [
       "Ahí sí te toca resolver a vos. ¡Suerte!",
     ],
     facts: [
-      { badge: "28", title: "28 misiones", text: "En cada una elegís una opción y apretás Confirmar. No se puede volver atrás." },
-      { badge: "45", title: "45 minutos en total", text: "No hace falta apurarse: pensá bien cada misión." },
+      // "{n}" se reemplaza por la cantidad de misiones de la prueba (4.º o 6.º).
+      { badge: "{n}", title: "{n} misiones", text: "En cada una elegís una opción y apretás Confirmar. No se puede volver atrás." },
+      { badge: "⏱", title: "Sin límite de tiempo", text: "Arriba vas a ver cuánto tiempo pasó, pero no hace falta apurarse: pensá bien cada misión." },
       { badge: "?", title: "No hay botón Probar", text: "Tenés que pensar qué haría el robot con cada programa." },
       { badge: "✓", title: "¿No estás seguro?", text: "Elegí la opción que te parezca mejor." },
     ],

@@ -12,6 +12,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   return NextResponse.json({
     attemptId: attempt.id,
     studentName: attempt.student_name,
+    grade: attempt.grade,
     startedAt: attempt.started_at,
     status: attempt.status,
     optionOrders: attempt.option_orders,

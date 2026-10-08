@@ -1,7 +1,6 @@
-// Gráficos con una columna por misión (las 28 en el orden en que las hacen los chicos), más las cajas
+// Gráficos con una columna por misión de la prueba (en el orden en que las hacen los chicos), más las cajas
 // de minutos y las barras de chicos por cantidad de señales. Se dibujan en el servidor, en HTML.
 import type { ReactNode } from "react";
-import { ITEMS } from "@/lib/items";
 import type { ItemPattern, TimeStats } from "@/lib/patrones";
 import { TONES, type Tone } from "@/lib/semaforo";
 import { fmt } from "@/lib/stats";
@@ -11,7 +10,10 @@ const PARTS = [
   { part: "A" as const, label: "Parte A · Programá al robot" },
   { part: "B" as const, label: "Parte B · Lógica" },
 ];
-const cols = (part: "A" | "B") => ITEMS.map((it, i) => ({ id: it.id, pos: i + 1 })).filter((c) => ITEMS[c.pos - 1].part === part);
+type Col = { id: string; part: "A" | "B" };
+/** Columnas de una parte, con su número de misión dentro de la prueba. */
+const colsOf = (all: Col[], part: "A" | "B") => all.map((c, i) => ({ id: c.id, pos: i + 1, part: c.part })).filter((c) => c.part === part);
+const partOf = (id: string): "A" | "B" => (id.startsWith("B") ? "B" : "A");
 const h = (v: number, max: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
 
 /** Gris medio para lo que "sigue la línea": el gris neutro de las etiquetas es muy claro para una barra. */
@@ -22,6 +24,7 @@ export const LINE_GRAY = "#A8A196";
  * y debajo los nombres de las misiones. `line`: valores para una línea punteada encima (p. ej. la esperada).
  */
 function MissionFrame({
+  items,
   height = 220,
   max,
   ticks,
@@ -30,6 +33,7 @@ function MissionFrame({
   line,
   footer,
 }: {
+  items: Col[];
   height?: number;
   max: number;
   ticks: number[];
@@ -50,7 +54,7 @@ function MissionFrame({
         </div>
         <div className="flex min-w-0 flex-1 gap-4">
           {PARTS.map(({ part }) => {
-            const cs = cols(part);
+            const cs = colsOf(items, part);
             const pts = line
               ? cs
                   .map((c, i) => ({ x: ((i + 0.5) / cs.length) * 100, v: line[c.id] }))
@@ -82,7 +86,7 @@ function MissionFrame({
         <div className="w-9 shrink-0" />
         <div className="flex min-w-0 flex-1 gap-4">
           {PARTS.map(({ part, label }) => {
-            const cs = cols(part);
+            const cs = colsOf(items, part);
             return (
               <div key={part} className="flex min-w-0 flex-col gap-1" style={{ flexGrow: cs.length, flexBasis: 0 }}>
                 <div className="flex">
@@ -146,6 +150,7 @@ export function ErrorLineChart({ patterns }: { patterns: ItemPattern[] }) {
   return (
     <div className="flex flex-col gap-4">
       <MissionFrame
+        items={patterns}
         height={240}
         max={1}
         ticks={pctTicks(1)}
@@ -185,7 +190,7 @@ export const OUTCOME = [
   { key: "ok", label: "Acertó", fill: TONES.bien.fill, text: TONES.bien.text },
   { key: "wrong", label: "Se equivocó pensando", fill: TONES.bajo.fill, text: TONES.bajo.text },
   { key: "rushed", label: "Contestó apurado", fill: TONES.regular.fill, text: TONES.regular.text },
-  { key: "none", label: "No llegó", fill: "#D8D3C8", text: C.ink },
+  { key: "none", label: "No respondió", fill: "#D8D3C8", text: C.ink },
 ] as const;
 
 export function OutcomeBar({ p }: { p: ItemPattern }) {
@@ -231,6 +236,7 @@ export function RushCurve({ patterns }: { patterns: ItemPattern[] }) {
   return (
     <div className="flex flex-col gap-4">
       <MissionFrame
+        items={patterns}
         height={180}
         max={max}
         ticks={pctTicks(max)}
@@ -241,7 +247,7 @@ export function RushCurve({ patterns }: { patterns: ItemPattern[] }) {
           const r = p.rushed / p.n;
           const nr = p.noReach / p.n;
           return (
-            <div className="absolute inset-0" title={`${id} (misión ${p.pos}): ${p.rushed} de ${p.n} contestaron apurados y ${p.noReach} no llegaron.`}>
+            <div className="absolute inset-0" title={`${id} (misión ${p.pos}): ${p.rushed} de ${p.n} contestaron apurados y ${p.noReach} no la respondieron.`}>
               <div className="absolute inset-x-0 bottom-0" style={{ height: h(r, max), background: TONES.regular.fill }} />
               <div className="absolute inset-x-0 rounded-t" style={{ bottom: h(r, max), height: h(nr, max), background: "#B9B2A4" }} />
               {r + nr > 0 && (
@@ -255,7 +261,7 @@ export function RushCurve({ patterns }: { patterns: ItemPattern[] }) {
       />
       <div className="flex flex-wrap gap-x-5 gap-y-2 pl-11 text-[13px]" style={{ color: C.secondary }}>
         <Swatch fill={TONES.regular.fill}>Contestó apurado</Swatch>
-        <Swatch fill="#B9B2A4">No llegó (se terminó el tiempo)</Swatch>
+        <Swatch fill="#B9B2A4">No la respondió</Swatch>
       </div>
     </div>
   );
@@ -275,6 +281,7 @@ export function ItemTimeChart({ times }: { times: { id: string; all: TimeStats }
   return (
     <div className="flex flex-col gap-4">
       <MissionFrame
+        items={times.map((t) => ({ id: t.id, part: partOf(t.id) }))}
         height={220}
         max={max}
         ticks={secTicks(max)}
@@ -312,6 +319,7 @@ export function RightWrongChart({ times }: { times: { id: string; right: number;
   return (
     <div className="flex flex-col gap-4">
       <MissionFrame
+        items={times.map((t) => ({ id: t.id, part: partOf(t.id) }))}
         height={220}
         max={max}
         ticks={secTicks(max)}
@@ -350,21 +358,25 @@ export function RightWrongChart({ times }: { times: { id: string; right: number;
 
 // ───────── Minutos de la prueba por colegio ─────────
 
-const MIN_MAX = 45;
-const minPos = (v: number) => `${Math.max(0, Math.min(100, (v / MIN_MAX) * 100))}%`;
+// Sin límite de tiempo: la escala llega hasta el chico más lento, redondeado a 15 minutos.
+const minPos = (v: number, max: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
 
-function MiniBox({ s, top, fill }: { s: TimeStats; top: number; fill: string }) {
+function MiniBox({ s, top, fill, max }: { s: TimeStats; top: number; fill: string; max: number }) {
   if (!s.n) return null;
+  const pos = (v: number) => minPos(v, max);
   return (
     <>
-      <div className="absolute h-0.5" style={{ top: top + 7, left: minPos(s.min), width: minPos(s.max - s.min), background: C.ink2 }} />
-      <div className="absolute rounded border-2" style={{ top, height: 16, left: minPos(s.q1), width: `max(4px, ${minPos(s.q3 - s.q1)})`, background: fill, borderColor: C.ink }} />
-      <div className="absolute w-[3px]" style={{ top: top - 2, height: 20, left: `calc(${minPos(s.median)} - 1px)`, background: C.ink }} />
+      <div className="absolute h-0.5" style={{ top: top + 7, left: pos(s.min), width: pos(s.max - s.min), background: C.ink2 }} />
+      <div className="absolute rounded border-2" style={{ top, height: 16, left: pos(s.q1), width: `max(4px, ${pos(s.q3 - s.q1)})`, background: fill, borderColor: C.ink }} />
+      <div className="absolute w-[3px]" style={{ top: top - 2, height: 20, left: `calc(${pos(s.median)} - 1px)`, background: C.ink }} />
     </>
   );
 }
 
 export function MinutesBoxes({ rows }: { rows: { label: string; sub: string; total: TimeStats; missions: TimeStats }[] }) {
+  const top = Math.max(15, ...rows.map((r) => (Number.isFinite(r.total.max) ? r.total.max : 0)));
+  const max = Math.ceil(top / 15) * 15;
+  const ticks = Array.from({ length: max / 15 + 1 }, (_, i) => i * 15);
   return (
     <div className="flex flex-col">
       {rows.map((r) => (
@@ -379,9 +391,8 @@ export function MinutesBoxes({ rows }: { rows: { label: string; sub: string; tot
             className="relative h-full min-w-0 flex-1"
             title={`${r.label}: prueba completa, mediana ${fmt(r.total.median, 0)} min (la mitad central de ${fmt(r.total.q1, 0)} a ${fmt(r.total.q3, 0)}); resolviendo misiones, mediana ${fmt(r.missions.median, 0)} min.`}
           >
-            <div className="absolute inset-y-0 border-l-2 border-dashed" style={{ left: "calc(100% - 2px)", borderColor: TONES.bajo.fill }} />
-            <MiniBox s={r.total} top={12} fill="#8F877A" />
-            <MiniBox s={r.missions} top={36} fill="#DCD7CC" />
+            <MiniBox s={r.total} top={12} fill="#8F877A" max={max} />
+            <MiniBox s={r.missions} top={36} fill="#DCD7CC" max={max} />
           </div>
           <span className="w-[150px] shrink-0 text-[13px] leading-snug" style={{ color: C.secondary }}>
             completa {fmt(r.total.median, 0)} min
@@ -393,8 +404,8 @@ export function MinutesBoxes({ rows }: { rows: { label: string; sub: string; tot
       <div className="flex gap-3 pt-1.5">
         <span className="w-[170px] shrink-0" />
         <div className="relative h-[18px] min-w-0 flex-1 text-xs" style={{ color: C.muted }}>
-          {[0, 15, 30, 45].map((v) => (
-            <span key={v} className={`absolute whitespace-nowrap ${v === 45 ? "-translate-x-full" : v === 0 ? "" : "-translate-x-1/2"}`} style={{ left: minPos(v) }}>
+          {ticks.map((v) => (
+            <span key={v} className={`absolute whitespace-nowrap ${v === max ? "-translate-x-full" : v === 0 ? "" : "-translate-x-1/2"}`} style={{ left: minPos(v, max) }}>
               {v} min
             </span>
           ))}
@@ -405,10 +416,6 @@ export function MinutesBoxes({ rows }: { rows: { label: string; sub: string; tot
         <Swatch fill="#8F877A">Prueba completa (con la explicación y las prácticas)</Swatch>
         <Swatch fill="#DCD7CC">Resolviendo misiones</Swatch>
         <span>Caja: la mitad central · raya: la mediana · línea fina: del más rápido al más lento</span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3.5 border-l-2 border-dashed" style={{ borderColor: TONES.bajo.fill }} />
-          Límite de 45 minutos
-        </span>
       </div>
     </div>
   );

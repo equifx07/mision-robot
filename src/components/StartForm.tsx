@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Course = { id: number; name: string };
-type School = { id: number; name: string; courses: Course[] };
+type School = { id: number; name: string };
+type Grade = "4" | "6";
+
+/** Edades que se ofrecen según el grado. */
+const AGES: Record<Grade, number[]> = { "4": [8, 9, 10, 11], "6": [10, 11, 12, 13, 14] };
 
 export const ATTEMPT_KEY = "mr_attempt";
 
@@ -23,8 +26,8 @@ export function StartForm() {
   const router = useRouter();
   const [schools, setSchools] = useState<School[] | null>(null);
   const [name, setName] = useState("");
+  const [grade, setGrade] = useState<Grade | null>(null);
   const [schoolId, setSchoolId] = useState<number | "">("");
-  const [courseId, setCourseId] = useState<number | "">("");
   const [age, setAge] = useState<string>("");
   const [priorExp, setPriorExp] = useState<string>("");
   const [gender, setGender] = useState<string>("");
@@ -53,13 +56,12 @@ export function StartForm() {
     }
   }, []);
 
-  const courses = schools?.find((s) => s.id === schoolId)?.courses ?? [];
-
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
     setError(null);
     if (name.trim().length < 2) return setError("Escribí tu nombre y apellido.");
-    if (schoolId === "" || courseId === "") return setError("Elegí tu colegio y tu curso.");
+    if (!grade) return setError("Elegí si sos de 4.º o de 6.º.");
+    if (schoolId === "") return setError("Elegí tu colegio.");
     if (!priorExp) return setError("Contanos si tuviste clases de programación antes.");
     setSending(true);
     try {
@@ -69,7 +71,7 @@ export function StartForm() {
         body: JSON.stringify({
           studentName: name.trim(),
           schoolId,
-          courseId,
+          grade,
           age: age || null,
           priorExp,
           gender: gender || null,
@@ -116,44 +118,56 @@ export function StartForm() {
           </div>
         </div>
       )}
+      {!grade ? (
+        <section aria-labelledby="grado-t" className="flex flex-col gap-5 rounded-3xl bg-white p-6 shadow-md ring-1 ring-slate-200">
+          <div className="text-center">
+            <h2 id="grado-t" className="text-2xl font-black text-slate-800">
+              ¿En qué grado estás?
+            </h2>
+            <p className="mt-1 text-slate-600">Tocá tu grado para empezar.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {(["4", "6"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => {
+                  setGrade(g);
+                  setAge("");
+                  setError(null);
+                }}
+                className="flex min-h-[140px] flex-col items-center justify-center gap-1 rounded-3xl border-4 border-[#BFD6FA] bg-[#EEF4FF] text-[#0D55BF] shadow-[inset_0_-6px_0_#BFD6FA] hover:border-[#176CE0] focus-visible:border-[#176CE0] focus-visible:outline-none"
+              >
+                <span className="text-6xl font-black leading-none">{g}.º</span>
+                <span className="text-xl font-bold">grado</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : (
       <form onSubmit={submit} className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-md ring-1 ring-slate-200">
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#EEF4FF] px-4 py-2.5">
+          <span className="text-lg font-bold text-[#0D55BF]">Prueba de {grade}.º grado</span>
+          <button type="button" onClick={() => setGrade(null)} className="min-h-[40px] rounded-xl px-3 text-sm font-semibold text-[#0D55BF] underline underline-offset-2 hover:bg-white">
+            No es mi grado
+          </button>
+        </div>
         <div>
           <label className={label} htmlFor="name">
             Nombre y apellido
           </label>
           <input id="name" className={field} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" maxLength={80} placeholder="Ej.: Ana Pérez" />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
           <div>
             <label className={label} htmlFor="school">
               Colegio
             </label>
-            <select
-              id="school"
-              className={field}
-              value={schoolId}
-              onChange={(e) => {
-                setSchoolId(e.target.value ? Number(e.target.value) : "");
-                setCourseId("");
-              }}
-            >
+            <select id="school" className={field} value={schoolId} onChange={(e) => setSchoolId(e.target.value ? Number(e.target.value) : "")}>
               <option value="">Elegí tu colegio</option>
               {(schools ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className={label} htmlFor="course">
-              Curso
-            </label>
-            <select id="course" className={field} value={courseId} onChange={(e) => setCourseId(e.target.value ? Number(e.target.value) : "")} disabled={schoolId === ""}>
-              <option value="">Elegí tu curso</option>
-              {courses.map((cs) => (
-                <option key={cs.id} value={cs.id}>
-                  {cs.name}
                 </option>
               ))}
             </select>
@@ -169,7 +183,7 @@ export function StartForm() {
             </label>
             <select id="age" className={field} value={age} onChange={(e) => setAge(e.target.value)}>
               <option value="">Elegí tu edad</option>
-              {[10, 11, 12, 13, 14].map((a) => (
+              {AGES[grade].map((a) => (
                 <option key={a} value={a}>
                   {a} años
                 </option>
@@ -213,6 +227,7 @@ export function StartForm() {
           {sending ? "Empezando…" : "Empezar"}
         </button>
       </form>
+      )}
     </div>
   );
 }

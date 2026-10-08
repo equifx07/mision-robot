@@ -1,8 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
-import { cohenInsight, coursesInsight, levelsBySchoolInsight, meansInsight, spreadInsight } from "@/lib/insights";
+import { cohenInsight, levelsBySchoolInsight, meansInsight, spreadInsight } from "@/lib/insights";
 import { D_SCALE } from "@/lib/semaforo";
-import { MAX_SCORE } from "@/lib/stats";
+import { levelsText } from "@/lib/tests";
 import { CohenMatrix, LevelStackRows, MeanBars, SpreadBoxes } from "@/components/admin/charts";
 import { Card, EmptyState, ExplainedSection, Notice, PageHeader, ScaleLegend, SectionIndex } from "@/components/admin/ui";
 import { FiltersBar } from "../Filters";
@@ -23,14 +23,13 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
     { id: "niveles", label: "Niveles" },
     { id: "parejos", label: "Qué tan parejos" },
     ...(many ? [{ id: "diferencias", label: "Tamaño de las diferencias" }] : []),
-    ...(d.byCourse.length > 1 ? [{ id: "cursos", label: "Por curso" }] : []),
   ];
   let k = 0;
   const kicker = (t: string) => `${++k} · ${t}`;
 
   return (
     <>
-      <PageHeader title="Comparación entre colegios" subtitle="Todos los colegios hicieron las mismas 28 misiones. Con pocos chicos por colegio, las diferencias chicas todavía no son confiables." />
+      <PageHeader title="Comparación entre colegios" subtitle={`Se comparan solo chicos del mismo grado: todos hicieron las mismas ${d.test.max} misiones de la prueba de ${d.test.label}. Con pocos chicos por colegio, las diferencias chicas todavía no son confiables.`} />
       <FiltersBar filters={filters} schools={d.schools} action="/admin/comparacion" />
 
       {s.n === 0 ? (
@@ -44,13 +43,13 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
             id="promedio"
             kicker={kicker("PROMEDIO")}
             question="¿Qué colegio tuvo mejor puntaje promedio?"
-            muestra="La barra es el puntaje promedio de cada colegio, de 0 a 28, pintada según el nivel en el que cae. La línea fina es el rango donde probablemente está el promedio real."
+            muestra={`La barra es el puntaje promedio de cada colegio, de 0 a ${d.test.max}, pintada según el nivel en el que cae. La línea fina es el rango donde probablemente está el promedio real.`}
             medicion="Promedio del puntaje total de los chicos que terminaron la prueba. El rango es el intervalo de confianza del 95%: con otros chicos del mismo colegio, el promedio caería ahí 95 de cada 100 veces. Con pocos chicos, el rango se ensancha."
-            observa={meansInsight(groups)}
+            observa={meansInsight(d.test, groups)}
           >
             <Card>
               <MeanBars
-                max={MAX_SCORE}
+                test={d.test}
                 rows={[
                   { label: "Todos", sub: chicos(s.n), mean: s.mean, ci: s.ci, separate: many },
                   ...(many ? groups.map((g) => ({ label: g.school.name, sub: chicos(g.summary.n), mean: g.summary.mean, ci: g.summary.ci })) : []),
@@ -64,11 +63,12 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
             kicker={kicker("NIVELES")}
             question="¿Cómo se reparten sus chicos en los niveles?"
             muestra="Cada barra es un colegio y suma todos sus chicos. Cada color es un nivel; el número de adentro es cuántos chicos hay en ese nivel."
-            medicion="Cada chico se ubica en un nivel según su puntaje total: Inicial 0–9, En desarrollo 10–16, Logrado 17–22 y Avanzado 23–28."
+            medicion={`Cada chico se ubica en un nivel según su puntaje total: ${levelsText(d.test)}.`}
             observa={levelsBySchoolInsight(groups)}
           >
             <Card>
               <LevelStackRows
+                test={d.test}
                 rows={[{ label: "Todos", n: s.n, levels: s.levels }, ...(many ? groups.map((g) => ({ label: g.school.name, n: g.summary.n, levels: g.summary.levels })) : [])]}
               />
             </Card>
@@ -83,7 +83,7 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
             observa={spreadInsight(groups)}
           >
             <Card>
-              <SpreadBoxes max={MAX_SCORE} rows={many ? groups.map((g) => ({ label: g.school.name, s: g.summary })) : [{ label: groups[0]?.school.name ?? "Todos", s }]} />
+              <SpreadBoxes test={d.test} rows={many ? groups.map((g) => ({ label: g.school.name, s: g.summary })) : [{ label: groups[0]?.school.name ?? "Todos", s }]} />
             </Card>
           </ExplainedSection>
 
@@ -103,23 +103,6 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
             </ExplainedSection>
           )}
 
-          {d.byCourse.length > 1 && (
-            <ExplainedSection
-              id="cursos"
-              kicker={kicker("POR CURSO")}
-              question="¿Cómo le fue a cada curso?"
-              muestra="El puntaje promedio de cada curso, con su rango probable, igual que en la primera sección pero separado por curso."
-              medicion="Promedio del puntaje total de los chicos de cada curso que terminaron la prueba, con su intervalo de confianza del 95%."
-              observa={coursesInsight(d.byCourse)}
-            >
-              <Card>
-                <MeanBars
-                  max={MAX_SCORE}
-                  rows={[...d.byCourse].sort((a, b) => b.summary.mean - a.summary.mean).map((c) => ({ label: c.label, sub: chicos(c.summary.n), mean: c.summary.mean, ci: c.summary.ci }))}
-                />
-              </Card>
-            </ExplainedSection>
-          )}
         </>
       )}
     </>

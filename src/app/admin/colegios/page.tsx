@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import { countAttemptsBySchool, listSchools } from "@/lib/repo";
-import { createCourseAction, createSchoolAction, deleteCourseAction, deleteSchoolAction, renameSchoolAction } from "../actions";
+import { createSchoolAction, deleteSchoolAction, renameSchoolAction } from "../actions";
 import { ConfirmButton } from "../ConfirmButton";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +15,8 @@ export default async function SchoolsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="m-0 font-[family-name:var(--font-fredoka)] text-[34px] font-semibold">Colegios y cursos</h1>
-        <p className="m-0 text-[17px] text-[#55504A]">Los nombres que cargás acá son los que ven los chicos en el desplegable de la pantalla inicial. Cargalos antes de la toma.</p>
+        <h1 className="m-0 font-[family-name:var(--font-fredoka)] text-[34px] font-semibold">Colegios</h1>
+        <p className="m-0 text-[17px] text-[#55504A]">Los nombres que cargás acá son los que ven los chicos en el desplegable de la pantalla inicial. Cargalos antes de la toma. No hay cursos: cada chico elige si es de 4.º o de 6.º al entrar.</p>
       </div>
 
       <form action={createSchoolAction} className="flex flex-wrap items-end gap-2 rounded-2xl border border-[#E5E1D8] bg-white p-4">
@@ -43,32 +43,11 @@ export default async function SchoolsPage() {
               </button>
             </form>
             <p className="mt-1 text-xs text-[#6B665E]">
-              {counts[s.id] ?? 0} prueba{(counts[s.id] ?? 0) === 1 ? "" : "s"} registradas
+              4.º: {counts[s.id]?.["4"] ?? 0} {(counts[s.id]?.["4"] ?? 0) === 1 ? "prueba" : "pruebas"} · 6.º: {counts[s.id]?.["6"] ?? 0} {(counts[s.id]?.["6"] ?? 0) === 1 ? "prueba" : "pruebas"}
             </p>
-            <ul className="mt-3 flex flex-col gap-1">
-              {s.courses.map((c) => (
-                <li key={c.id} className="flex items-center justify-between rounded-xl bg-[#F6F4EF] px-3 py-2 text-sm">
-                  <span>{c.name}</span>
-                  <form action={deleteCourseAction}>
-                    <input type="hidden" name="id" value={c.id} />
-                    <ConfirmButton message={`¿Borrar el curso ${c.name}? Se borran también sus pruebas.`} className="text-xs text-red-700 hover:underline">
-                      borrar
-                    </ConfirmButton>
-                  </form>
-                </li>
-              ))}
-              {s.courses.length === 0 && <li className="text-sm text-[#8F897F]">Sin cursos todavía.</li>}
-            </ul>
-            <form action={createCourseAction} className="mt-3 flex items-center gap-2">
-              <input type="hidden" name="schoolId" value={s.id} />
-              <input name="name" required maxLength={40} className={`${input} w-40`} placeholder="Ej.: 6.º A" />
-              <button type="submit" className={btn}>
-                Agregar curso
-              </button>
-            </form>
             <form action={deleteSchoolAction} className="mt-4 border-t border-[#F0EDE6] pt-3">
               <input type="hidden" name="id" value={s.id} />
-              <ConfirmButton message={`¿Borrar el colegio ${s.name} con todos sus cursos y pruebas? Esta acción no se puede deshacer.`} className="text-xs text-red-700 hover:underline">
+              <ConfirmButton message={`¿Borrar el colegio ${s.name} con todas sus pruebas? Esta acción no se puede deshacer.`} className="text-xs text-red-700 hover:underline">
                 Borrar colegio
               </ConfirmButton>
             </form>

@@ -32,7 +32,7 @@ function Inner() {
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
             <div className="h-full rounded-full bg-[#176CE0]" style={{ width: `${(index / ITEMS.length) * 100}%` }} />
           </div>
-          <span className="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">⏱ 45 min</span>
+          <span className="whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">⏱ 0 min</span>
         </div>
       </header>
       <div className="mx-auto max-w-[1320px] px-4 pb-24 pt-4">

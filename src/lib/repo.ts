@@ -1,15 +1,16 @@
-// Operaciones sobre la base de datos (colegios, cursos, intentos, respuestas).
+// Operaciones sobre la base de datos (colegios, intentos, respuestas).
+// Hay dos pruebas (4.º y 6.º): cada intento guarda su grado y se corrige con las misiones de esa prueba.
 import { randomUUID } from "node:crypto";
 import { getDb, type Row } from "./db";
-import { ITEMS, TEST_VERSION, itemById } from "./items";
+import { itemById } from "./items";
+import { testOf, type Grade } from "./tests";
 
-export type School = { id: number; name: string; courses: Course[] };
-export type Course = { id: number; school_id: number; name: string };
+export type School = { id: number; name: string };
 
 export type Attempt = {
   id: string;
   school_id: number;
-  course_id: number;
+  grade: Grade;
   student_name: string;
   age: number | null;
   prior_exp: string | null;
@@ -22,6 +23,7 @@ export type Attempt = {
   started_at: string;
   finished_at: string | null;
   total_ms: number | null;
+  /** "timed_out" solo existía con el límite de 45 minutos; ya no se genera. */
   status: "in_progress" | "finished" | "timed_out";
   score: number | null;
   score_a: number | null;
@@ -39,15 +41,10 @@ export type Answer = {
   answered_at: string | null;
 };
 
-export const TIME_LIMIT_MS = 45 * 60 * 1000;
-
-// ───────── Colegios y cursos ─────────
+// ───────── Colegios ─────────
 
 export function listSchools(): School[] {
-  const db = getDb();
-  const schools = db.prepare("SELECT id, name FROM schools ORDER BY name").all() as { id: number; name: string }[];
-  const courses = db.prepare("SELECT id, school_id, name FROM courses ORDER BY name").all() as Course[];
-  return schools.map((s) => ({ ...s, courses: courses.filter((c) => c.school_id === s.id) }));
+  return getDb().prepare("SELECT id, name FROM schools ORDER BY name").all() as unknown as School[];
 }
 
 export function createSchool(name: string): number {
@@ -59,22 +56,19 @@ export function renameSchool(id: number, name: string): void {
   getDb().prepare("UPDATE schools SET name = ? WHERE id = ?").run(name.trim(), id);
 }
 
+/** Borra el colegio y todas sus pruebas (las respuestas se borran en cascada). */
 export function deleteSchool(id: number): void {
-  getDb().prepare("DELETE FROM schools WHERE id = ?").run(id);
+  const db = getDb();
+  db.prepare("DELETE FROM attempts WHERE school_id = ?").run(id);
+  db.prepare("DELETE FROM schools WHERE id = ?").run(id);
 }
 
-export function createCourse(schoolId: number, name: string): number {
-  const r = getDb().prepare("INSERT INTO courses (school_id, name) VALUES (?, ?)").run(schoolId, name.trim());
-  return Number(r.lastInsertRowid);
-}
-
-export function deleteCourse(id: number): void {
-  getDb().prepare("DELETE FROM courses WHERE id = ?").run(id);
-}
-
-export function countAttemptsBySchool(): Record<number, number> {
-  const rows = getDb().prepare("SELECT school_id, COUNT(*) AS n FROM attempts GROUP BY school_id").all() as { school_id: number; n: number }[];
-  return Object.fromEntries(rows.map((r) => [r.school_id, r.n]));
+/** Pruebas por colegio y grado: { [schoolId]: { "4": n, "6": n } }. */
+export function countAttemptsBySchool(): Record<number, Record<string, number>> {
+  const rows = getDb().prepare("SELECT school_id, grade, COUNT(*) AS n FROM attempts GROUP BY school_id, grade").all() as { school_id: number; grade: string; n: number }[];
+  const out: Record<number, Record<string, number>> = {};
+  for (const r of rows) (out[r.school_id] ??= {})[r.grade] = r.n;
+  return out;
 }
 
 // ───────── Intentos ─────────
@@ -97,7 +91,7 @@ function rowToAttempt(r: Row): Attempt {
 
 export type NewAttempt = {
   schoolId: number;
-  courseId: number;
+  grade: Grade;
   studentName: string;
   age?: number | null;
   priorExp?: string | null;
@@ -109,19 +103,20 @@ export type NewAttempt = {
 
 export function createAttempt(input: NewAttempt): Attempt {
   const db = getDb();
-  const course = db.prepare("SELECT id, school_id FROM courses WHERE id = ?").get(input.courseId) as Course | undefined;
-  if (!course || course.school_id !== input.schoolId) throw new Error("Curso inválido");
+  const school = db.prepare("SELECT id FROM schools WHERE id = ?").get(input.schoolId);
+  if (!school) throw new Error("Colegio inválido");
+  const test = testOf(input.grade);
   const id = randomUUID();
   const orders: Record<string, number[]> = {};
-  for (const item of ITEMS) orders[item.id] = shuffle(item.options.map((_, i) => i));
+  for (const item of test.items) orders[item.id] = shuffle(item.options.map((_, i) => i));
   const startedAt = new Date().toISOString();
   db.prepare(
-    `INSERT INTO attempts (id, school_id, course_id, student_name, age, prior_exp, gender, device, user_agent, screen, test_version, option_orders, started_at, status)
+    `INSERT INTO attempts (id, school_id, grade, student_name, age, prior_exp, gender, device, user_agent, screen, test_version, option_orders, started_at, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'in_progress')`,
   ).run(
     id,
     input.schoolId,
-    input.courseId,
+    test.grade,
     input.studentName.trim(),
     input.age ?? null,
     input.priorExp ?? null,
@@ -129,7 +124,7 @@ export function createAttempt(input: NewAttempt): Attempt {
     input.device ?? null,
     input.userAgent ?? null,
     input.screen ?? null,
-    TEST_VERSION,
+    test.version,
     JSON.stringify(orders),
     startedAt,
   );
@@ -158,7 +153,9 @@ export function saveAnswer(
   const attempt = getAttempt(attemptId);
   if (!attempt) throw new Error("Intento inválido");
   if (attempt.status !== "in_progress") throw new Error("La prueba ya terminó");
-  const position = ITEMS.findIndex((i) => i.id === itemId);
+  const test = testOf(attempt.grade);
+  const position = test.ids.indexOf(itemId);
+  if (position < 0) throw new Error("La misión no es de esta prueba");
   const isCorrect = chosen === null ? null : chosen === item.correct ? 1 : 0;
   getDb()
     .prepare(
@@ -171,7 +168,8 @@ export function saveAnswer(
   return getDb().prepare("SELECT * FROM answers WHERE attempt_id = ? AND item_id = ?").get(attemptId, itemId) as unknown as Answer;
 }
 
-export function finishAttempt(attemptId: string, reason: "finished" | "timed_out" = "finished"): Attempt {
+/** Cierra la prueba: puntaje con las misiones de su grado y tiempo total (sin límite). */
+export function finishAttempt(attemptId: string): Attempt {
   const db = getDb();
   const attempt = getAttempt(attemptId);
   if (!attempt) throw new Error("Intento inválido");
@@ -181,10 +179,8 @@ export function finishAttempt(attemptId: string, reason: "finished" | "timed_out
   let score = 0;
   let scoreA = 0;
   let scoreB = 0;
-  for (const item of ITEMS) {
-    const a = byId.get(item.id);
-    const ok = a?.is_correct === 1;
-    if (ok) {
+  for (const item of testOf(attempt.grade).items) {
+    if (byId.get(item.id)?.is_correct === 1) {
       score++;
       if (item.part === "A") scoreA++;
       else scoreB++;
@@ -192,8 +188,7 @@ export function finishAttempt(attemptId: string, reason: "finished" | "timed_out
   }
   const finishedAt = new Date().toISOString();
   const totalMs = Date.parse(finishedAt) - Date.parse(attempt.started_at);
-  db.prepare("UPDATE attempts SET status = ?, finished_at = ?, total_ms = ?, score = ?, score_a = ?, score_b = ? WHERE id = ?").run(
-    reason,
+  db.prepare("UPDATE attempts SET status = 'finished', finished_at = ?, total_ms = ?, score = ?, score_a = ?, score_b = ? WHERE id = ?").run(
     finishedAt,
     totalMs,
     score,
@@ -208,27 +203,27 @@ export function deleteAttempt(attemptId: string): void {
   getDb().prepare("DELETE FROM attempts WHERE id = ?").run(attemptId);
 }
 
-export type AttemptRow = Attempt & { school_name: string; course_name: string };
+export type AttemptRow = Attempt & { school_name: string };
 
-export function listAttempts(filter?: { schoolId?: number; courseId?: number; status?: string }): AttemptRow[] {
+export function listAttempts(filter?: { schoolId?: number; grade?: Grade; status?: string }): AttemptRow[] {
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (filter?.schoolId) {
     where.push("a.school_id = ?");
     params.push(filter.schoolId);
   }
-  if (filter?.courseId) {
-    where.push("a.course_id = ?");
-    params.push(filter.courseId);
+  if (filter?.grade) {
+    where.push("a.grade = ?");
+    params.push(filter.grade);
   }
   if (filter?.status) {
     where.push("a.status = ?");
     params.push(filter.status);
   }
-  const sql = `SELECT a.*, s.name AS school_name, c.name AS course_name
-    FROM attempts a JOIN schools s ON s.id = a.school_id JOIN courses c ON c.id = a.course_id
+  const sql = `SELECT a.*, s.name AS school_name
+    FROM attempts a JOIN schools s ON s.id = a.school_id
     ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY a.started_at DESC`;
-  return (getDb().prepare(sql).all(...params) as Row[]).map((r) => ({ ...rowToAttempt(r), school_name: String(r.school_name), course_name: String(r.course_name) }));
+  return (getDb().prepare(sql).all(...params) as Row[]).map((r) => ({ ...rowToAttempt(r), school_name: String(r.school_name) }));
 }
 
 export function listAllAnswers(attemptIds?: string[]): Answer[] {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
 import { errorsInsight, fatigueInsight, signalsInsight, thinkingInsight } from "@/lib/insights";
-import { ITEMS } from "@/lib/items";
+import { itemById } from "@/lib/items";
 import {
   attentionStatus,
   DIAGNOSES,
@@ -12,7 +12,7 @@ import {
   rushedByThird,
   SIGNAL_LABEL,
   studentSignals,
-  THIRDS,
+  thirdsOf,
   type ItemPattern,
 } from "@/lib/patrones";
 import { FEW_DATA, RUSH_SCALE, rushTone, TONES } from "@/lib/semaforo";
@@ -28,7 +28,7 @@ const signed = (x: number) => (Number.isFinite(x) ? `${x > 0 ? "+" : x < 0 ? "�
 const GRID = "grid grid-cols-[64px_minmax(140px,1fr)_minmax(220px,1.4fr)_64px_56px_60px_76px_186px] items-center gap-3";
 
 function PatternRow({ p }: { p: ItemPattern }) {
-  const item = ITEMS[p.pos - 1];
+  const item = itemById(p.id)!;
   return (
     <div className={`${GRID} min-h-[48px] border-b py-1.5 text-sm`} style={{ borderColor: "#F0EDE6" }}>
       <span className="flex flex-col leading-tight">
@@ -61,7 +61,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
   const filters = parseFilters(await searchParams);
   const d = loadDashboard(filters);
   const n = d.scored.length;
-  const ref = loadReference();
+  const ref = loadReference(d.test);
   const patterns = itemPatterns(d.scored, ref);
   const byErr = [...patterns].filter((p) => Number.isFinite(p.err)).sort((a, b) => b.err - a.err);
   const top = byErr.slice(0, 10);
@@ -96,9 +96,9 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
           {a.student_name}
         </Link>
         <span style={{ color: C.secondary }}>
-          {a.school_name} · {a.course_name}
+          {a.school_name}
         </span>
-        <span className="tabular-nums">{s.scored.total}/28</span>
+        <span className="tabular-nums">{s.scored.total}/{d.test.max}</span>
         <span className="flex flex-wrap gap-1.5">
           <Chip tone={st.tone}>{st.label}</Chip>
           {s.signals.map((k) => (
@@ -184,7 +184,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
             kicker="2 · PENSANDO O APURADOS"
             question="¿Se equivocan pensando o contestan apurados?"
             wide
-            muestra="Las misiones ordenadas de más a menos errores. La barra reparte a todos los chicos: los que acertaron, los que se equivocaron con tiempo normal, los que contestaron apurados y los que no llegaron. Salto: cuántos puntos de error tiene por encima (+) o por debajo (−) de la línea."
+            muestra="Las misiones ordenadas de más a menos errores. La barra reparte a todos los chicos: los que acertaron, los que se equivocaron con tiempo normal, los que contestaron apurados y los que no la respondieron. Salto: cuántos puntos de error tiene por encima (+) o por debajo (−) de la línea."
             medicion="Respuesta apurada: el chico tardó menos de la décima parte de lo que tarda el chico típico en esa misión (nunca menos de 3 s ni más de 10 s); en ese tiempo no alcanza a leerla. El tiempo típico es la mediana de todas las pruebas, así el umbral es el mismo para todos los colegios."
             observa={thinkingInsight(patterns)}
           >
@@ -229,7 +229,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
             kicker="3 · CANSANCIO AL FINAL"
             question="¿Llegan cansados o apurados a las últimas misiones?"
             wide
-            muestra="Arriba, misión por misión, cuántos de cada 100 chicos contestaron apurados y cuántos no llegaron porque se terminó el tiempo. Abajo, el porcentaje de respuestas apuradas al principio, en el medio y al final de la prueba, en total y por colegio."
+            muestra="Arriba, misión por misión, cuántos de cada 100 chicos contestaron apurados y cuántos no la respondieron. Abajo, el porcentaje de respuestas apuradas al principio, en el medio y al final de la prueba, en total y por colegio."
             medicion="Si el apuro crece hacia el final, hay chicos que llegan cansados o desatentos a las últimas misiones. Para confirmar que son respuestas al azar se mira cuántas acertaron: con 4 opciones, al azar se acierta 1 de cada 4 (25%)."
             observa={fatigueInsight(
               thirds,
@@ -243,7 +243,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
                 <span className="text-[15px] font-bold">Respuestas apuradas en cada parte de la prueba</span>
                 <ToneHeatmap
                   labelWidth={170}
-                  columns={THIRDS.map((t) => `${t.label} (${t.range})`)}
+                  columns={thirdsOf(d.test).map((t) => `${t.label} (${t.range})`)}
                   groups={[
                     {
                       rows: [
@@ -268,7 +268,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
             question="¿Qué chicos muestran señales de desatención?"
             wide
             muestra="Cuántos chicos no muestran señales, cuántos muestran una y cuántos varias, en total y por colegio. Debajo, los que muestran varias, con un enlace a su prueba."
-            medicion="Se miran 3 señales en cada chico. Respuestas apuradas: 3 o más. Rinde menos al final: comparado con el resto en las mismas misiones, en las últimas 9 le va al menos 40 puntos peor que en las primeras 9. Se apuró al final: en las últimas 9 va el doble de rápido que en las primeras 9, comparado con el tiempo típico de cada misión. Una sola señal puede ser casualidad; varias juntas sugieren falta de atención."
+            medicion="Se miran 3 señales en cada chico. Respuestas apuradas: 3 o más. Rinde menos al final: comparado con el resto en las mismas misiones, en el último tercio de la prueba le va al menos 40 puntos peor que en el primer tercio. Se apuró al final: en el último tercio va el doble de rápido que en el primero, comparado con el tiempo típico de cada misión. Una sola señal puede ser casualidad; varias juntas sugieren falta de atención."
             observa={signalsInsight(bySchoolSignals, total)}
           >
             <Card className="flex flex-col gap-6">

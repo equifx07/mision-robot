@@ -13,9 +13,9 @@ export default function Home() {
           <p className="text-slate-600">Desafíos para pensar como un programador</p>
         </div>
       </div>
-      <p className="max-w-lg text-center text-slate-600">Completá tus datos para empezar. Después vas a ver una explicación con ejemplos antes de la primera misión.</p>
+      <p className="max-w-lg text-center text-slate-600">Elegí tu grado y completá tus datos. Después vas a ver una explicación con ejemplos antes de la primera misión.</p>
       <StartForm />
-      <p className="text-xs text-slate-400">EPC-6 · Evaluación de Pensamiento Computacional para 6.º grado</p>
+      <p className="text-xs text-slate-400">Evaluación de Pensamiento Computacional · 4.º y 6.º grado</p>
     </main>
   );
 }
