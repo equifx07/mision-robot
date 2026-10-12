@@ -17,7 +17,7 @@ const ENTRIES: Entry[] = [
     screen,
     key: `intro-${i}`,
     step: { index: i, total: intro.length },
-    note: "La prueba todavía no empezó. Nada de esto cuenta.",
+    note: "Todavía no empezó la prueba.",
     label: `Explicación inicial ${i + 1} de ${intro.length}`,
   })),
   ...Object.entries(PRACTICES).flatMap(([id, p]) => {
@@ -28,7 +28,7 @@ const ENTRIES: Entry[] = [
       key: `${id}-${i}`,
       step: { index: i, total: screens.length },
       context: `Antes de la misión ${n}`,
-      note: "Esto no cuenta para el resultado.",
+      note: "",
       label: `Antes de ${id} · ${i + 1} de ${screens.length}`,
     }));
   }),

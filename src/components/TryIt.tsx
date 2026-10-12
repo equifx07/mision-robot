@@ -22,7 +22,7 @@ export function TryIt({ item }: { item: ItemA }) {
     const ok = simulateOption(item, opt).ok;
     return (
       <div className="flex flex-col gap-3">
-        <div className="text-sm font-bold uppercase tracking-wide text-[#5B4B9A]">Así me muevo con tu elección</div>
+        <div className="text-sm font-bold uppercase tracking-wide text-[#5B4B9A]">Así me muevo</div>
         <RobotRunner key={runKey} map={item.map} program={effectiveProgram(item, opt)} autoPlay tone="guide" mapReserve={400} />
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -30,10 +30,10 @@ export function TryIt({ item }: { item: ItemA }) {
             onClick={() => setTrying(false)}
             className="min-h-[44px] rounded-xl border-2 border-[#CFC2FA] bg-white px-4 font-semibold text-[#3A2592] hover:bg-[#F6F3FF]"
           >
-            ← Elegir otra opción
+            ← Probar otra
           </button>
           <span className={`text-base font-semibold ${ok ? "text-green-700" : "text-[#5B4B9A]"}`}>
-            {ok ? "¡Muy bien! En la prueba vas a tener que pensarlo sin probar." : "Esa opción no funciona. Probá con otra."}
+            {ok ? "¡Muy bien!" : "No funciona. Probá otra."}
           </span>
         </div>
       </div>
@@ -42,7 +42,7 @@ export function TryIt({ item }: { item: ItemA }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <ItemView item={item} index={0} total={1} selected={selected} onSelect={setSelected} mapReserve={item.map.kind === "canvas" ? 420 : 390} />
+      <ItemView item={item} index={0} total={1} selected={selected} onSelect={setSelected} mapReserve={item.map.kind === "canvas" ? 400 : 370} />
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -59,7 +59,7 @@ export function TryIt({ item }: { item: ItemA }) {
           </svg>
           Probar
         </button>
-        <span className="text-base text-[#5B4B9A]">{selected === null ? "Tocá una opción." : "Apretá Probar para ver qué pasa."}</span>
+        <span className="text-base text-[#5B4B9A]">{selected === null ? "Tocá una opción." : "Apretá Probar."}</span>
       </div>
     </div>
   );

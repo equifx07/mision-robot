@@ -256,7 +256,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
           screen={introScreensList[phase.step]}
           screenKey={`intro-${phase.step}`}
           step={{ index: phase.step, total: introScreensList.length }}
-          note="La prueba todavía no empezó. Nada de esto cuenta."
+          note="Todavía no empezó la prueba."
           onBack={phase.step > 0 ? () => setPhase({ kind: "intro", step: phase.step - 1 }) : undefined}
           onNext={() => (last ? goToItem(0) : setPhase({ kind: "intro", step: phase.step + 1 }))}
           nextLabel={last ? "Empezar la prueba →" : "Siguiente →"}
@@ -277,7 +277,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
           screenKey={`${item.id}-${sub}`}
           step={{ index: sub, total: screens.length }}
           context={`Antes de la misión ${phase.itemIndex + 1}`}
-          note="Esto no cuenta para el resultado."
+          note=""
           onBack={sub > 0 ? () => setPhase({ kind: "practice", itemIndex: phase.itemIndex, sub: sub - 1 }) : undefined}
           onNext={() => (last ? goToItem(phase.itemIndex, true) : setPhase({ kind: "practice", itemIndex: phase.itemIndex, sub: sub + 1 }))}
           nextLabel={last ? `Ir a la misión ${phase.itemIndex + 1} →` : "Siguiente →"}

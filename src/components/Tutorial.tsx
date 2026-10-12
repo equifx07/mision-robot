@@ -7,12 +7,11 @@
 // La usan TestRunner y la vista previa /preview/tutorial.
 
 import { useState, type ReactNode } from "react";
-import { BlockChip, PieceView } from "@/components/ProgramView";
 import { RobotRunner } from "@/components/RobotRunner";
 import { TryIt } from "@/components/TryIt";
 import { robotSvg } from "@/lib/art";
 import type { ItemA } from "@/lib/model";
-import { INTRO, LEGEND, TRY_AFTER_DEMO, type Demo, type Fact, type Practice } from "@/lib/tutorial";
+import { INTRO, TRY_AFTER_DEMO, type Demo, type Fact, type Practice } from "@/lib/tutorial";
 
 /** Colores del modo guía (no aparecen en las misiones). */
 export const GUIDE = {
@@ -33,7 +32,6 @@ export type GuideScreen = {
   lines: string[];
   demos?: Demo[];
   tryIt?: ItemA;
-  legend?: boolean;
   facts?: Fact[];
 };
 
@@ -44,10 +42,9 @@ export function introScreens(count = 25): GuideScreen[] {
     mode: s.tryIt ? "practica" : "explicacion",
     title: s.title,
     lines: s.lines,
-    demos: s.demo ? [s.demo] : undefined,
+    demos: s.demo ? [s.demo] : s.demos,
     tryIt: s.tryIt,
-    legend: s.legend,
-    facts: s.facts?.map((f) => ({ ...f, badge: n(f.badge), title: n(f.title), text: n(f.text) })),
+    facts: s.facts?.map((f) => ({ ...f, badge: n(f.badge), title: n(f.title), text: f.text ? n(f.text) : undefined })),
   }));
 }
 
@@ -83,8 +80,29 @@ function PencilIcon({ size, fg }: { size: number; fg: string }) {
   );
 }
 
-function GuideRobot() {
-  return <svg width="100" height="117" viewBox="0 0 120 140" role="img" aria-label="Robot guía" dangerouslySetInnerHTML={{ __html: robotSvg("happy") }} />;
+function GuideRobot({ small }: { small?: boolean }) {
+  return (
+    <svg width={small ? 56 : 100} height={small ? 65 : 117} viewBox="0 0 120 140" role="img" aria-label="Robot guía" className="shrink-0" dangerouslySetInnerHTML={{ __html: robotSvg("happy") }} />
+  );
+}
+
+/** En las prácticas: el robot chico y su frase en una fila, así la misión usa todo el ancho. */
+function SpeechRow({ title, lines, titleId }: { title: string; lines: string[]; titleId: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <GuideRobot small />
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-2xl px-4 py-2.5" style={{ background: GUIDE.bubble }}>
+        <h2 id={titleId} className="m-0 text-2xl font-bold leading-tight" style={{ color: GUIDE.ink }}>
+          {title}
+        </h2>
+        {lines.map((l, i) => (
+          <p key={i} className="m-0 text-xl leading-snug text-[#1F2B45]">
+            {l}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Dots({ index, total }: { index: number; total: number }) {
@@ -105,11 +123,11 @@ function Speech({ title, lines, titleId, wide }: { title: string; lines: string[
   return (
     <div className={`flex shrink-0 flex-col gap-1.5 ${wide ? "mx-auto w-full max-w-2xl" : "lg:w-[360px]"}`}>
       <div className="relative flex flex-col gap-2.5 rounded-3xl px-5 py-4" style={{ background: GUIDE.bubble }}>
-        <h2 id={titleId} className="m-0 text-2xl font-bold leading-tight" style={{ color: GUIDE.ink }}>
+        <h2 id={titleId} className="m-0 text-[28px] font-bold leading-tight" style={{ color: GUIDE.ink }}>
           {title}
         </h2>
         {lines.map((l, i) => (
-          <p key={i} className="m-0 text-lg leading-snug text-[#1F2B45]">
+          <p key={i} className="m-0 text-xl leading-snug text-[#1F2B45]">
             {l}
           </p>
         ))}
@@ -117,28 +135,22 @@ function Speech({ title, lines, titleId, wide }: { title: string; lines: string[
       </div>
       <div className="flex items-end gap-2.5 pl-3.5">
         <GuideRobot />
-        <span className="pb-3.5 text-[15px] font-semibold" style={{ color: GUIDE.muted }}>
-          Robot guía
-        </span>
       </div>
     </div>
   );
 }
 
-function Panel({ icon, title, subtitle, children }: { icon: ReactNode; title: string; subtitle?: string; children: ReactNode }) {
+function Panel({ icon, title, children }: { icon?: ReactNode; title?: string; children: ReactNode }) {
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-3 rounded-[22px] border-2 p-4" style={{ background: GUIDE.panel, borderColor: GUIDE.line }}>
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        {icon}
-        <span className="text-xl font-bold" style={{ color: GUIDE.ink }}>
-          {title}
-        </span>
-        {subtitle && (
-          <span className="text-base" style={{ color: GUIDE.muted }}>
-            · {subtitle}
+      {title && (
+        <div className="flex items-center gap-2.5">
+          {icon}
+          <span className="text-xl font-bold" style={{ color: GUIDE.ink }}>
+            {title}
           </span>
-        )}
-      </div>
+        </div>
+      )}
       {children}
     </section>
   );
@@ -161,7 +173,7 @@ function Demos({ demos, keyPrefix }: { demos: Demo[]; keyPrefix: string }) {
               className="min-h-[40px] rounded-full border-2 px-4 text-base font-semibold"
               style={k === i ? { background: GUIDE.main, borderColor: GUIDE.main, color: "#FFFFFF" } : { background: "#FFFFFF", borderColor: "#CFC2FA", color: GUIDE.dark }}
             >
-              Ejemplo {k + 1}
+              {demos[k].label ?? `Ejemplo ${k + 1}`}
             </button>
           ))}
         </div>
@@ -171,39 +183,18 @@ function Demos({ demos, keyPrefix }: { demos: Demo[]; keyPrefix: string }) {
   );
 }
 
-function Legend() {
-  return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-flow-row-dense sm:grid-cols-2">
-      {LEGEND.map((l) => (
-        <div key={l.title} className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-white px-3 pb-2 pt-2.5 ring-2 ring-[#E3DBFF] ${l.title.length > 28 ? "sm:col-span-2" : ""}`}>
-          {l.block ? (
-            <PieceView blocks={[l.block]} size="compact" />
-          ) : (
-            <BlockChip fam={l.fam} size="compact">
-              {l.title}
-            </BlockChip>
-          )}
-          <span className="min-w-[150px] flex-1 text-sm text-slate-700">{l.text}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function Facts({ facts }: { facts: Fact[] }) {
   return (
-    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {facts.map((f) => (
-        <div key={f.title} className="flex items-start gap-3 rounded-2xl bg-white p-3 ring-2 ring-[#E3DBFF]">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white" style={{ background: GUIDE.main }}>
+        <div key={f.title} className="flex flex-col items-center gap-3 rounded-2xl bg-white px-3 py-5 text-center ring-2 ring-[#E3DBFF]">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white" style={{ background: GUIDE.main }}>
             {f.badge}
           </span>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-lg font-bold" style={{ color: GUIDE.ink }}>
-              {f.title}
-            </span>
-            <span className="text-base leading-snug text-slate-700">{f.text}</span>
-          </div>
+          <span className="text-xl font-bold leading-tight" style={{ color: GUIDE.ink }}>
+            {f.title}
+          </span>
+          {f.text && <span className="text-base leading-snug text-slate-700">{f.text}</span>}
         </div>
       ))}
     </div>
@@ -213,25 +204,19 @@ function Facts({ facts }: { facts: Fact[] }) {
 function RightPanel({ screen, screenKey }: { screen: GuideScreen; screenKey: string }) {
   if (screen.tryIt)
     return (
-      <Panel icon={<PencilIcon size={22} fg={GUIDE.main} />} title="Probá acá" subtitle="en la prueba no vas a tener el botón Probar">
+      <Panel>
         <TryIt key={screen.tryIt.id} item={screen.tryIt} />
       </Panel>
     );
   if (screen.demos?.length)
     return (
-      <Panel icon={<EyeIcon size={22} fg={GUIDE.main} bg="#FFFFFF" />} title="Mirá el ejemplo" subtitle="el robot lo hace solo">
+      <Panel>
         <Demos demos={screen.demos} keyPrefix={screenKey} />
-      </Panel>
-    );
-  if (screen.legend)
-    return (
-      <Panel icon={<EyeIcon size={22} fg={GUIDE.main} bg="#FFFFFF" />} title="Los bloques" subtitle="antes de usar cada uno vas a ver un ejemplo">
-        <Legend />
       </Panel>
     );
   if (screen.facts?.length)
     return (
-      <Panel icon={<EyeIcon size={22} fg={GUIDE.main} bg="#FFFFFF" />} title="Así va a ser la prueba">
+      <Panel>
         <Facts facts={screen.facts} />
       </Panel>
     );
@@ -256,7 +241,7 @@ type ModalProps = {
 export function TutorialModal({ screen, screenKey, step, context, note, onBack, onNext, nextLabel }: ModalProps) {
   const practice = screen.mode === "practica";
   const titleId = `guia-${screenKey.replace(/[^A-Za-z0-9_-]/g, "")}`;
-  const hasRight = !!(screen.tryIt || screen.demos?.length || screen.legend || screen.facts?.length);
+  const hasRight = !!(screen.tryIt || screen.demos?.length || screen.facts?.length);
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-4" style={{ background: GUIDE.backdrop }}>
       <div
@@ -270,24 +255,25 @@ export function TutorialModal({ screen, screenKey, step, context, note, onBack, 
             {practice ? <PencilIcon size={26} fg="#FFFFFF" /> : <EyeIcon size={28} fg="#FFFFFF" bg={GUIDE.main} />}
             <span className="text-xl font-bold tracking-[0.06em]">{practice ? "PRÁCTICA" : "EXPLICACIÓN"}</span>
             <span className="rounded-full bg-white/20 px-3.5 py-1 text-base font-semibold">
-              {practice ? "No cuenta: podés equivocarte y volver a probar" : "Solo mirá: no hay que resolver nada"}
+              {practice ? "No cuenta" : "Solo mirá"}
             </span>
           </div>
           <div className="flex items-center gap-3">
             {step && step.total > 1 && <Dots index={step.index} total={step.total} />}
-            {step && step.total > 1 ? (
-              <span className="text-base font-semibold">
-                Paso {step.index + 1} de {step.total}
-              </span>
-            ) : (
-              context && <span className="text-base font-semibold">{context}</span>
-            )}
+            {!(step && step.total > 1) && context && <span className="text-base font-semibold">{context}</span>}
           </div>
         </div>
-        <div key={screenKey} className={`flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pb-4 pt-5 sm:px-7 lg:flex-row ${hasRight ? "lg:items-start" : "lg:justify-center"}`}>
-          <Speech title={screen.title} lines={screen.lines} titleId={titleId} wide={!hasRight} />
-          <RightPanel screen={screen} screenKey={screenKey} />
-        </div>
+        {screen.tryIt ? (
+          <div key={screenKey} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-4 pt-4 sm:px-7">
+            <SpeechRow title={screen.title} lines={screen.lines} titleId={titleId} />
+            <RightPanel screen={screen} screenKey={screenKey} />
+          </div>
+        ) : (
+          <div key={screenKey} className={`flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pb-4 pt-5 sm:px-7 lg:flex-row ${hasRight ? "lg:items-start" : "lg:justify-center"}`}>
+            <Speech title={screen.title} lines={screen.lines} titleId={titleId} wide={!hasRight} />
+            <RightPanel screen={screen} screenKey={screenKey} />
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-[#F0ECFB] px-5 py-3 sm:px-7">
           {onBack ? (
             <button type="button" onClick={onBack} className="min-h-[48px] rounded-xl px-4 text-lg font-semibold hover:bg-[#F6F3FF]" style={{ color: GUIDE.muted }}>
@@ -296,9 +282,13 @@ export function TutorialModal({ screen, screenKey, step, context, note, onBack, 
           ) : (
             <span className="min-w-[1px]" />
           )}
-          <span className="text-base" style={{ color: GUIDE.muted }}>
-            {note}
-          </span>
+          {note ? (
+            <span className="text-base" style={{ color: GUIDE.muted }}>
+              {note}
+            </span>
+          ) : (
+            <span />
+          )}
           <button
             type="button"
             onClick={onNext}
