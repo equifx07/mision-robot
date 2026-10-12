@@ -118,12 +118,13 @@ export function generateDemo(opts: DemoOptions): { created: number } {
   return { created };
 }
 
+/** Manda todas las pruebas de demostración a la papelera (no borra nada). */
 export function deleteDemo(): number {
-  const r = getDb().prepare("DELETE FROM attempts WHERE device = ?").run(DEMO_DEVICE);
+  const r = getDb().prepare("UPDATE attempts SET deleted_at = ? WHERE device = ? AND deleted_at IS NULL").run(new Date().toISOString(), DEMO_DEVICE);
   return Number(r.changes);
 }
 
 export function countDemo(): number {
-  const r = getDb().prepare("SELECT COUNT(*) AS n FROM attempts WHERE device = ?").get(DEMO_DEVICE) as { n: number } | undefined;
+  const r = getDb().prepare("SELECT COUNT(*) AS n FROM attempts WHERE device = ? AND deleted_at IS NULL").get(DEMO_DEVICE) as { n: number } | undefined;
   return r?.n ?? 0;
 }

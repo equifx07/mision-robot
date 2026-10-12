@@ -1,7 +1,10 @@
 // Operaciones sobre la base de datos (colegios, intentos, respuestas).
 // Hay dos pruebas (4.º y 6.º): cada intento guarda su grado y se corrige con las misiones de esa prueba.
+// PAPELERA: desde el panel nunca se borra de verdad. Borrar marca deleted_at y esconde el colegio o la
+// prueba de todas las listas y estadísticas; se puede restaurar desde la papelera.
 import { randomUUID } from "node:crypto";
 import { getDb, type Row } from "./db";
+import "./backup"; // activa las copias de seguridad automáticas
 import { itemById } from "./items";
 import { testOf, type Grade } from "./tests";
 
@@ -28,6 +31,8 @@ export type Attempt = {
   score: number | null;
   score_a: number | null;
   score_b: number | null;
+  /** En la papelera desde esta fecha (null = activa). */
+  deleted_at: string | null;
 };
 
 export type Answer = {
@@ -44,11 +49,18 @@ export type Answer = {
 // ───────── Colegios ─────────
 
 export function listSchools(): School[] {
-  return getDb().prepare("SELECT id, name FROM schools ORDER BY name").all() as unknown as School[];
+  return getDb().prepare("SELECT id, name FROM schools WHERE deleted_at IS NULL ORDER BY name").all() as unknown as School[];
 }
 
+/** Crea el colegio. Si había uno con ese nombre en la papelera, lo restaura (con sus pruebas). */
 export function createSchool(name: string): number {
-  const r = getDb().prepare("INSERT INTO schools (name) VALUES (?)").run(name.trim());
+  const db = getDb();
+  const old = db.prepare("SELECT id FROM schools WHERE name = ? AND deleted_at IS NOT NULL").get(name.trim()) as { id: number } | undefined;
+  if (old) {
+    db.prepare("UPDATE schools SET deleted_at = NULL WHERE id = ?").run(old.id);
+    return old.id;
+  }
+  const r = db.prepare("INSERT INTO schools (name) VALUES (?)").run(name.trim());
   return Number(r.lastInsertRowid);
 }
 
@@ -56,16 +68,18 @@ export function renameSchool(id: number, name: string): void {
   getDb().prepare("UPDATE schools SET name = ? WHERE id = ?").run(name.trim(), id);
 }
 
-/** Borra el colegio y todas sus pruebas (las respuestas se borran en cascada). */
+/** Manda el colegio a la papelera: deja de verse, con todas sus pruebas. No borra nada. */
 export function deleteSchool(id: number): void {
-  const db = getDb();
-  db.prepare("DELETE FROM attempts WHERE school_id = ?").run(id);
-  db.prepare("DELETE FROM schools WHERE id = ?").run(id);
+  getDb().prepare("UPDATE schools SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL").run(new Date().toISOString(), id);
 }
 
-/** Pruebas por colegio y grado: { [schoolId]: { "4": n, "6": n } }. */
+export function restoreSchool(id: number): void {
+  getDb().prepare("UPDATE schools SET deleted_at = NULL WHERE id = ?").run(id);
+}
+
+/** Pruebas activas por colegio y grado: { [schoolId]: { "4": n, "6": n } }. */
 export function countAttemptsBySchool(): Record<number, Record<string, number>> {
-  const rows = getDb().prepare("SELECT school_id, grade, COUNT(*) AS n FROM attempts GROUP BY school_id, grade").all() as { school_id: number; grade: string; n: number }[];
+  const rows = getDb().prepare("SELECT school_id, grade, COUNT(*) AS n FROM attempts WHERE deleted_at IS NULL GROUP BY school_id, grade").all() as { school_id: number; grade: string; n: number }[];
   const out: Record<number, Record<string, number>> = {};
   for (const r of rows) (out[r.school_id] ??= {})[r.grade] = r.n;
   return out;
@@ -103,7 +117,7 @@ export type NewAttempt = {
 
 export function createAttempt(input: NewAttempt): Attempt {
   const db = getDb();
-  const school = db.prepare("SELECT id FROM schools WHERE id = ?").get(input.schoolId);
+  const school = db.prepare("SELECT id FROM schools WHERE id = ? AND deleted_at IS NULL").get(input.schoolId);
   if (!school) throw new Error("Colegio inválido");
   const test = testOf(input.grade);
   const id = randomUUID();
@@ -153,6 +167,7 @@ export function saveAnswer(
   const attempt = getAttempt(attemptId);
   if (!attempt) throw new Error("Intento inválido");
   if (attempt.status !== "in_progress") throw new Error("La prueba ya terminó");
+  if (attempt.deleted_at) throw new Error("La prueba fue borrada");
   const test = testOf(attempt.grade);
   const position = test.ids.indexOf(itemId);
   if (position < 0) throw new Error("La misión no es de esta prueba");
@@ -199,14 +214,32 @@ export function finishAttempt(attemptId: string): Attempt {
   return getAttempt(attemptId)!;
 }
 
+/** Manda la prueba a la papelera. No borra nada. */
 export function deleteAttempt(attemptId: string): void {
-  getDb().prepare("DELETE FROM attempts WHERE id = ?").run(attemptId);
+  getDb().prepare("UPDATE attempts SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL").run(new Date().toISOString(), attemptId);
+}
+
+export function restoreAttempt(attemptId: string): void {
+  getDb().prepare("UPDATE attempts SET deleted_at = NULL WHERE id = ?").run(attemptId);
+}
+
+/** Lo que está en la papelera: colegios y pruebas (con su colegio). */
+export function listTrash(): { schools: (School & { deleted_at: string; attempts: number })[]; attempts: (AttemptRow & { school_deleted: boolean })[] } {
+  const db = getDb();
+  const schools = db
+    .prepare("SELECT s.id, s.name, s.deleted_at, (SELECT COUNT(*) FROM attempts a WHERE a.school_id = s.id AND a.deleted_at IS NULL) AS attempts FROM schools s WHERE s.deleted_at IS NOT NULL ORDER BY s.deleted_at DESC")
+    .all() as unknown as (School & { deleted_at: string; attempts: number })[];
+  const attempts = (db
+    .prepare("SELECT a.*, s.name AS school_name, s.deleted_at IS NOT NULL AS school_deleted FROM attempts a JOIN schools s ON s.id = a.school_id WHERE a.deleted_at IS NOT NULL ORDER BY a.deleted_at DESC")
+    .all() as Row[]).map((r) => ({ ...rowToAttempt(r), school_name: String(r.school_name), school_deleted: Number(r.school_deleted) === 1 }));
+  return { schools, attempts };
 }
 
 export type AttemptRow = Attempt & { school_name: string };
 
+/** Pruebas activas (fuera de la papelera, y de colegios activos). */
 export function listAttempts(filter?: { schoolId?: number; grade?: Grade; status?: string }): AttemptRow[] {
-  const where: string[] = [];
+  const where: string[] = ["a.deleted_at IS NULL", "s.deleted_at IS NULL"];
   const params: (string | number)[] = [];
   if (filter?.schoolId) {
     where.push("a.school_id = ?");
@@ -222,7 +255,7 @@ export function listAttempts(filter?: { schoolId?: number; grade?: Grade; status
   }
   const sql = `SELECT a.*, s.name AS school_name
     FROM attempts a JOIN schools s ON s.id = a.school_id
-    ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY a.started_at DESC`;
+    WHERE ${where.join(" AND ")} ORDER BY a.started_at DESC`;
   return (getDb().prepare(sql).all(...params) as Row[]).map((r) => ({ ...rowToAttempt(r), school_name: String(r.school_name) }));
 }
 

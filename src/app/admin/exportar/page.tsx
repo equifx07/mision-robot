@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/auth";
+import { listBackups } from "@/lib/backup";
 import { GRADES, testOf } from "@/lib/tests";
 
 export const dynamic = "force-dynamic";
@@ -19,15 +20,54 @@ const FILES = [
 
 export default async function ExportPage() {
   await requireAdmin();
+  const backups = listBackups();
+  const mb = (n: number) => `${(n / 1024 / 1024).toLocaleString("es-AR", { maximumFractionDigits: 1 })} MB`;
   const link = "inline-flex min-h-[40px] items-center rounded-xl bg-[#22211F] px-4 text-[15px] font-semibold text-white no-underline hover:bg-black";
   return (
     <div className="flex max-w-3xl flex-col gap-5">
       <div>
-        <h1 className="m-0 font-[family-name:var(--font-fredoka)] text-[34px] font-semibold">Exportar datos</h1>
+        <h1 className="m-0 font-[family-name:var(--font-fredoka)] text-[34px] font-semibold">Exportar y copias de seguridad</h1>
         <p className="m-0 text-[17px] text-[#55504A]">
           Archivos CSV separados por punto y coma, con coma decimal, listos para abrir en Excel o Google Sheets en español. Cada archivo es de una sola prueba, porque 4.º y 6.º tienen misiones distintas.
         </p>
       </div>
+      <section className="flex flex-col gap-3 rounded-[20px] border-2 border-[#22211F] bg-white p-5">
+        <div>
+          <h2 className="m-0 text-lg font-bold">Copia de seguridad completa</h2>
+          <p className="mb-0 mt-1 text-sm text-[#55504A]">
+            Toda la base de datos en un solo archivo (.db): colegios, pruebas, respuestas y tiempos, incluida la papelera. Es lo que hace falta para recuperar todo si el servidor fallara.
+          </p>
+          <p className="mb-0 mt-2 rounded-xl bg-[#FCF1C4] px-3 py-2 text-sm font-semibold text-[#6E5600]">
+            Después de cada toma, bajá una copia y guardala fuera del servidor (por ejemplo, en Google Drive).
+          </p>
+        </div>
+        <div>
+          <a className={link} href="/api/admin/backup">
+            Descargar copia de seguridad (ahora)
+          </a>
+        </div>
+        <details>
+          <summary className="cursor-pointer text-sm font-semibold text-[#3D3A35]">
+            Copias automáticas guardadas en el servidor ({backups.length})
+          </summary>
+          <p className="mb-2 mt-2 text-[13px] text-[#55504A]">
+            Se hace una al arrancar la app y una por hora si hubo cambios. Se guardan todas las de 7 días y una por día hasta 90 días.
+          </p>
+          <ul className="m-0 flex list-none flex-col gap-1 p-0">
+            {backups.slice(0, 30).map((b) => (
+              <li key={b.name} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F4EF] px-3 py-2 text-sm">
+                <span className="tabular-nums">
+                  {b.date.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })} · {mb(b.size)}
+                </span>
+                <a href={`/api/admin/backup?archivo=${encodeURIComponent(b.name)}`} className="font-semibold text-[#22211F] underline underline-offset-2">
+                  Descargar
+                </a>
+              </li>
+            ))}
+            {backups.length === 0 && <li className="text-sm text-[#6B665E]">Todavía no hay copias automáticas.</li>}
+          </ul>
+        </details>
+      </section>
       {FILES.map((f) => (
         <section key={f.tipo} className="flex flex-col gap-3 rounded-[20px] border border-[#E5E1D8] bg-white p-5">
           <div>

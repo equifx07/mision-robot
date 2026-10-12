@@ -22,15 +22,22 @@ PRAGMA foreign_keys = ON;
 `;
 
 /**
- * Esquema 2 (2026-10-07): dos pruebas (4.º y 6.º). El grado reemplaza al curso: ya no hay cursos.
- * Al pasar del esquema 1 al 2 se borran todas las pruebas anteriores (pedido del equipo: eran de prueba).
+ * Historia del esquema:
+ * - 2 (2026-10-07): dos pruebas (4.º y 6.º); el grado reemplaza al curso.
+ * - 3 (2026-10-12): papelera. Colegios y pruebas borrados desde el panel quedan con deleted_at y se
+ *   pueden recuperar.
+ *
+ * REGLA (los datos no se pueden perder): un cambio de esquema SOLO puede AGREGAR tablas o columnas.
+ * Nunca DROP TABLE, nunca DELETE masivo, nunca recrear tablas. Antes de cualquier cambio se hace una
+ * copia de seguridad (ver backup.ts).
  */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS schools (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS attempts (
@@ -52,7 +59,8 @@ CREATE TABLE IF NOT EXISTS attempts (
   status TEXT NOT NULL DEFAULT 'in_progress',
   score INTEGER,
   score_a INTEGER,
-  score_b INTEGER
+  score_b INTEGER,
+  deleted_at TEXT
 );
 CREATE INDEX IF NOT EXISTS attempts_school ON attempts(school_id);
 CREATE INDEX IF NOT EXISTS attempts_grade ON attempts(grade);
@@ -95,19 +103,39 @@ function open(): Database {
   const sqlite = process.getBuiltinModule("node:sqlite") as { DatabaseSync: new (p: string) => Database };
   const db = new sqlite.DatabaseSync(file);
   db.exec(PRAGMAS);
+  db.exec(SCHEMA); // solo crea lo que falta (IF NOT EXISTS)
+  const columns = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all().map((r) => String(r.name));
+  // Una base anterior al esquema 2 no se toca: se avisa en vez de borrar nada.
+  if (!columns("attempts").includes("grade")) throw new Error("La base de datos es de una versión anterior (sin grado). No se modifica: revisar a mano.");
+  // Esquema 3: columnas de la papelera (solo se agregan). Antes de tocar nada, una copia.
+  const missing = ["schools", "attempts"].filter((t) => !columns(t).includes("deleted_at"));
+  if (missing.length) {
+    const backups = path.join(dir, "backups");
+    fs.mkdirSync(backups, { recursive: true });
+    const stamp = new Date().toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-");
+    db.exec(`VACUUM INTO '${path.join(backups, `mision-robot-${stamp}-migracion.db`).replace(/'/g, "''")}'`);
+    for (const table of missing) db.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at TEXT`);
+  }
   const version = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
-  if (version < SCHEMA_VERSION) {
-    // Migración al esquema 2: se descartan las pruebas y los cursos del esquema 1; los colegios quedan.
-    db.exec("DROP TABLE IF EXISTS answers; DROP TABLE IF EXISTS attempts; DROP TABLE IF EXISTS courses;");
-    db.exec(SCHEMA);
-    db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-  } else db.exec(SCHEMA);
+  if (version < SCHEMA_VERSION) db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return db;
 }
 
 export function getDb(): Database {
-  if (!globalThis.__misionRobotDb) globalThis.__misionRobotDb = open();
+  if (!globalThis.__misionRobotDb) {
+    globalThis.__misionRobotDb = open();
+    onOpen?.(globalThis.__misionRobotDb);
+  }
   return globalThis.__misionRobotDb;
 }
+
+/** Se llama una vez al abrir la base (lo usa backup.ts para las copias automáticas). */
+let onOpen: ((db: Database) => void) | undefined;
+export function whenOpened(fn: (db: Database) => void): void {
+  onOpen = fn;
+  if (globalThis.__misionRobotDb) fn(globalThis.__misionRobotDb);
+}
+
+export type { Database };
 
 export type { Row, SqlValue };

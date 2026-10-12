@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/auth";
-import { createSchool, deleteAttempt, deleteSchool, renameSchool } from "@/lib/repo";
+import { createSchool, deleteAttempt, deleteSchool, renameSchool, restoreAttempt, restoreSchool } from "@/lib/repo";
 
 async function guard() {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -39,6 +39,22 @@ export async function deleteSchoolAction(formData: FormData) {
   const id = Number(formData.get("id"));
   if (id) deleteSchool(id);
   revalidatePath("/admin/colegios");
+}
+
+export async function restoreSchoolAction(formData: FormData) {
+  await guard();
+  const id = Number(formData.get("id"));
+  if (id) restoreSchool(id);
+  revalidatePath("/admin/papelera");
+  revalidatePath("/admin/colegios");
+}
+
+export async function restoreAttemptAction(formData: FormData) {
+  await guard();
+  const id = String(formData.get("id") ?? "");
+  if (id) restoreAttempt(id);
+  revalidatePath("/admin/papelera");
+  revalidatePath("/admin/estudiantes");
 }
 
 export async function deleteAttemptAction(formData: FormData) {

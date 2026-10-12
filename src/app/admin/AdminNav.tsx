@@ -16,7 +16,8 @@ const RESULTS = [
 ];
 const MANAGE = [
   { href: "/admin/colegios", label: "Colegios" },
-  { href: "/admin/exportar", label: "Exportar datos" },
+  { href: "/admin/exportar", label: "Exportar y copias" },
+  { href: "/admin/papelera", label: "Papelera" },
   { href: "/admin/colores", label: "Cómo leer los colores" },
 ];
 

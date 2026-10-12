@@ -81,8 +81,8 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
         </div>
         <form action={deleteAttemptAction}>
           <input type="hidden" name="id" value={attempt.id} />
-          <ConfirmButton message="¿Borrar esta prueba? No se puede deshacer." className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
-            Borrar prueba
+          <ConfirmButton message="¿Mandar esta prueba a la papelera? Deja de contar en los resultados. Se puede recuperar desde la Papelera." className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
+            Mandar a la papelera
           </ConfirmButton>
         </form>
       </div>
@@ -103,6 +103,11 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
           </div>
         ))}
       </div>
+      {attempt.deleted_at && (
+        <p className="m-0 rounded-xl bg-[#FADBD6] px-3 py-2 text-sm font-semibold text-[#9B2019]">
+          Esta prueba está en la papelera: no cuenta en los resultados. Se puede restaurar desde la <a href="/admin/papelera" className="underline">Papelera</a>.
+        </p>
+      )}
       <p className="m-0 text-xs text-[#6B665E]">
         Dispositivo: {attempt.device ?? "–"} · pantalla {attempt.screen ?? "–"} · versión de la prueba {attempt.test_version}
       </p>

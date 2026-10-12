@@ -47,8 +47,8 @@ export default async function SchoolsPage() {
             </p>
             <form action={deleteSchoolAction} className="mt-4 border-t border-[#F0EDE6] pt-3">
               <input type="hidden" name="id" value={s.id} />
-              <ConfirmButton message={`¿Borrar el colegio ${s.name} con todas sus pruebas? Esta acción no se puede deshacer.`} className="text-xs text-red-700 hover:underline">
-                Borrar colegio
+              <ConfirmButton message={`¿Mandar el colegio ${s.name} a la papelera? Deja de verse con todas sus pruebas. Se puede recuperar desde la Papelera.`} className="text-xs text-red-700 hover:underline">
+                Mandar a la papelera
               </ConfirmButton>
             </form>
           </section>
