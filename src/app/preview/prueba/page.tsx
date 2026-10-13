@@ -5,7 +5,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ItemView } from "@/components/ItemView";
+import { ItemView, useBarHeight } from "@/components/ItemView";
 import { ITEMS } from "@/lib/items";
 
 function Inner() {
@@ -19,11 +19,12 @@ function Inner() {
 
   useEffect(() => setSelected(initial === null ? null : Number(initial)), [item.id, initial]);
 
+  const bar = useBarHeight();
   const go = (k: number) => router.replace(`/preview/prueba?i=${ITEMS[(k + ITEMS.length) % ITEMS.length].id}`);
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div className="min-h-screen" style={bar.style}>
+      <header ref={bar.ref} className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-2">
           <span className="font-black text-slate-800">Vista del alumno</span>
           <span className="whitespace-nowrap text-sm font-semibold text-slate-600">
@@ -36,7 +37,7 @@ function Inner() {
         </div>
       </header>
       <div className="mx-auto max-w-[1320px] px-4 pb-24 pt-4">
-        <ItemView key={item.id} item={item} index={index} total={ITEMS.length} selected={selected} onSelect={setSelected} />
+        <ItemView key={item.id} item={item} index={index} total={ITEMS.length} selected={selected} onSelect={setSelected} stickyPrompt />
       </div>
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-4 py-2">

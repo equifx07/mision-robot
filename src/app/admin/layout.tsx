@@ -14,7 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className={`${figtree.variable} min-h-screen bg-[#F6F4EF] text-[#22211F]`} style={{ fontFamily: "var(--font-figtree), system-ui, sans-serif" }}>
       {admin ? (
         <div className="flex min-h-screen flex-col lg:flex-row">
-          <aside className="flex shrink-0 flex-col gap-6 border-b border-[#E5E1D8] bg-white px-4 py-6 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r lg:py-7">
+          <aside className="flex shrink-0 flex-col gap-3 border-b border-[#E5E1D8] bg-white px-4 py-3 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:gap-5 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:py-6 [@media(max-height:760px)]:lg:gap-3 [@media(max-height:760px)]:lg:py-4">
             <div className="flex flex-col gap-0.5 px-2.5">
               <span className="font-[family-name:var(--font-fredoka)] text-[22px] font-bold">Misión Robot</span>
               <span className="text-sm text-[#6B665E]">Panel de resultados</span>
@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Suspense fallback={null}>
               <AdminNav />
             </Suspense>
-            <div className="mt-auto flex flex-col gap-2 px-2.5 text-sm">
+            <div className="mt-auto hidden flex-col gap-2 px-2.5 pt-2 text-sm lg:flex">
               <a href="/preview" target="_blank" className="text-[#3D3A35] underline-offset-2 hover:underline">
                 Ver las misiones ↗
               </a>

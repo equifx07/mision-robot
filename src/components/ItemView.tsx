@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref, type RefObject } from "react";
 import { MapView } from "@/components/MapView";
 import { blockNumbers, CondChip, diffRows, measureCondChip, measureProgram, PieceView, ProgramView, type BlockSize } from "@/components/ProgramView";
 import { Figure, OptionFigure } from "@/components/b/Figures";
@@ -380,6 +380,35 @@ function ProgramPanel({ item, selected, panelRef }: { item: ItemA; selected: num
 }
 
 /** Completar: flecha que une el recuadro de piezas con el hueco (o con la pieza ya encastrada). */
+/**
+ * En pantallas medianas (desde 1024 px) mapa, programa y opciones van en fila; si las opciones
+ * son anchas y no entran, se corrían fuera de la pantalla. Esto detecta ese caso y deja que
+ * las opciones bajen a una segunda línea.
+ */
+function useRowWrap(rowRef: RefObject<HTMLDivElement | null>, deps: unknown[]) {
+  const [wrap, setWrap] = useState(false);
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const measure = () => {
+      const st = getComputedStyle(row);
+      if (st.flexDirection !== "row") return setWrap(false);
+      const kids = [...row.children].filter((el) => getComputedStyle(el).position !== "absolute") as HTMLElement[];
+      // Con display: contents la grilla de opciones es la que ocupa lugar en la fila.
+      const boxes = kids.flatMap((el) => (getComputedStyle(el).display === "contents" ? ([...el.children] as HTMLElement[]) : [el]));
+      const gap = parseFloat(st.columnGap) || 0;
+      const need = boxes.reduce((s, el) => s + el.offsetWidth + parseFloat(getComputedStyle(el).marginLeft || "0"), 0) + gap * Math.max(0, boxes.length - 1);
+      setWrap(need > row.clientWidth + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(row);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return wrap;
+}
+
 function useHoleLink(rowRef: RefObject<HTMLDivElement | null>, panelRef: RefObject<HTMLDivElement | null>, boxRef: RefObject<HTMLDivElement | null>, deps: unknown[]) {
   const [d, setD] = useState<{ line: string; head: string } | null>(null);
   useLayoutEffect(() => {
@@ -430,7 +459,41 @@ type Props = {
   showCoords?: boolean;
   /** Alto que se reserva para lo que rodea al mapa (dentro de la ventana de práctica hay menos lugar). */
   mapReserve?: number;
+  /** La consigna queda fija arriba al bajar (debajo de la barra de la prueba, ver useBarHeight). */
+  stickyPrompt?: boolean;
 };
+
+/**
+ * Mide el alto de la barra superior de la prueba y lo deja en la variable CSS --bar-h,
+ * para que la consigna quede pegada justo debajo al bajar en pantallas bajas.
+ */
+export function useBarHeight() {
+  const ref = useRef<HTMLElement>(null);
+  const [h, setH] = useState(52);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setH(Math.round(el.getBoundingClientRect().height));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return { ref, style: { "--bar-h": `${h}px` } as CSSProperties };
+}
+
+/** true cuando la página ya bajó un poco: la consigna fija muestra su borde inferior. */
+function useScrolled(on: boolean) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    if (!on) return;
+    const update = () => setScrolled(window.scrollY > 4);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [on]);
+  return on && scrolled;
+}
 
 export function ItemView(props: Props) {
   return props.item.part === "A" ? <ItemAView {...props} item={props.item} /> : <ItemBView {...props} item={props.item} />;
@@ -458,7 +521,7 @@ function ReviewHeader({ item, index, total }: { item: Item; index: number; total
   );
 }
 
-function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords, mapReserve = MAP_RESERVE }: Props & { item: ItemA }) {
+function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords, mapReserve = MAP_RESERVE, stickyPrompt }: Props & { item: ItemA }) {
   const displayOrder = order ?? item.options.map((_, i) => i);
   const results = review ? item.options.map((o) => simulateOption(item, o)) : null;
   const picker = item.task === "C" && !!item.given;
@@ -472,22 +535,36 @@ function ItemAView({ item, index, total, selected, onSelect, order, review, show
   const rowRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
-  const link = useHoleLink(rowRef, panelRef, boxRef, [item.id, selected, picker]);
+  const wrap = useRowWrap(rowRef, [item.id, mapReserve]);
+  const link = useHoleLink(rowRef, panelRef, boxRef, [item.id, selected, picker, wrap]);
   const pickerTitle = item.options.every((o) => o.kind === "cond") ? "¿Cuál de estas condiciones va en el hueco?" : "¿Cuál de estas piezas va en el hueco?";
+  const scrolled = useScrolled(!!stickyPrompt);
 
   return (
     <section className="flex flex-col gap-3">
       {review && <ReviewHeader item={item} index={index} total={total} />}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div
+        className={
+          stickyPrompt
+            ? `sticky top-[var(--bar-h,52px)] z-20 -mx-4 -mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-b bg-[#FBF7EE]/95 px-4 pb-2.5 pt-4 backdrop-blur transition-[border-color,box-shadow] ${scrolled ? "border-[#E8DFCC] shadow-[0_6px_14px_-10px_rgba(31,43,69,0.35)]" : "border-transparent"}`
+            : "flex flex-wrap items-center gap-x-3 gap-y-2"
+        }
+      >
         <TaskPill task={item.task} />
         <p className="text-xl font-semibold leading-snug text-[#1F2B45]">{item.prompt}</p>
         {fix && (
-          <div className="ml-auto">
+          <div className={stickyPrompt ? "ml-auto hidden xl:block" : "ml-auto"}>
             <FixSteps canvas={item.map.kind === "canvas"} />
           </div>
         )}
       </div>
-      <div ref={rowRef} className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-center-safe">
+      {/* En pantallas angostas los pasos van debajo, para que la parte fija ocupe poco. */}
+      {fix && stickyPrompt && (
+        <div className="xl:hidden">
+          <FixSteps canvas={item.map.kind === "canvas"} />
+        </div>
+      )}
+      <div ref={rowRef} className={`relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-center-safe ${wrap ? "lg:flex-wrap" : ""}`}>
         <MapPanel item={item} review={review} showCoords={showCoords} mapReserve={mapReserve} />
         <ProgramPanel item={item} selected={review ? null : selected} panelRef={panelRef} />
         {picker && link && (

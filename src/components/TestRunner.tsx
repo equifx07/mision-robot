@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ItemView } from "@/components/ItemView";
+import { ItemView, useBarHeight } from "@/components/ItemView";
 import { Robot } from "@/components/MapView";
 import { introScreens, practiceScreens, TutorialModal } from "@/components/Tutorial";
 import { ATTEMPT_KEY } from "@/components/StartForm";
@@ -203,11 +203,12 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     }
   }
 
+  const bar = useBarHeight();
   const minutes = Math.floor(elapsedMs / 60000);
   const total = items.length;
 
   const header = (
-    <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <header ref={bar.ref} className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-4 py-2">
         <div className="flex items-center gap-2 font-black text-slate-800">
           <svg width="34" height="34" viewBox="-26 -30 52 56" aria-hidden>
@@ -296,6 +297,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
           selected={selected}
           onSelect={setSelected}
           order={attempt?.optionOrders[item.id]}
+          stickyPrompt
         />
         <div className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1320px] items-center justify-between gap-4 px-4 py-2">
@@ -329,7 +331,7 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={bar.style}>
       {header}
       {body}
     </div>
