@@ -7,6 +7,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const { id } = await ctx.params;
   const attempt = getAttempt(id);
   if (!attempt) return NextResponse.json({ error: "No existe" }, { status: 404 });
+  if (attempt.deleted_at) return NextResponse.json({ error: "La prueba se cerró", status: "cancelled" }, { status: 409 });
   if (attempt.status !== "in_progress") return NextResponse.json({ error: "La prueba ya terminó", status: attempt.status }, { status: 409 });
   let body: Record<string, unknown>;
   try {

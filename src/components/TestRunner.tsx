@@ -162,6 +162,47 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
     return () => window.clearInterval(id);
   }, [attempt]);
 
+  // Señal de vida para el panel En vivo: al cambiar de pantalla y cada 20 s mientras la prueba está abierta.
+  // Si la terminaron o la descartaron desde el panel, la pantalla lo muestra.
+  const where =
+    phase.kind === "intro"
+      ? "Explicación inicial"
+      : phase.kind === "practice"
+        ? `Práctica antes de la misión ${phase.itemIndex + 1}`
+        : phase.kind === "item"
+          ? `Misión ${phase.itemIndex + 1}`
+          : null;
+  useEffect(() => {
+    if (!attempt || !where) return;
+    let stop = false;
+    const ping = () => {
+      if (stop) return;
+      fetch(`/api/attempts/${attemptId}/ping`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ where }) })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!stop && d && d.status && d.status !== "in_progress") {
+            setPhase({ kind: "done", status: d.status });
+            try {
+              localStorage.removeItem(ATTEMPT_KEY);
+              localStorage.removeItem(shownKey(attemptId));
+            } catch {
+              /* sin localStorage */
+            }
+          }
+        })
+        .catch(() => {});
+    };
+    ping();
+    const id = window.setInterval(ping, 20000);
+    const onShow = () => document.visibilityState === "visible" && ping();
+    document.addEventListener("visibilitychange", onShow);
+    return () => {
+      stop = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onShow);
+    };
+  }, [attempt, attemptId, where]);
+
   // Aviso al cerrar la pestaña durante la prueba
   useEffect(() => {
     if (phase.kind !== "item") return;
@@ -315,7 +356,20 @@ export function TestRunner({ attemptId }: { attemptId: string }) {
       </div>
     );
   } else if (phase.kind === "finishing") body = <p className="p-10 text-center text-slate-500">Guardando tu misión…</p>;
-  else if (phase.kind === "done") {
+  else if (phase.kind === "done" && phase.status === "cancelled") {
+    body = (
+      <div className="mx-auto flex max-w-lg flex-col items-center gap-4 p-10 text-center">
+        <svg width="110" height="110" viewBox="-46 -48 92 92" aria-hidden>
+          <Robot x={0} y={0} scale={1.55} />
+        </svg>
+        <h2 className="text-3xl font-black text-slate-800">Esta prueba se cerró</h2>
+        <p className="text-lg text-slate-700">Avisale a tu docente.</p>
+        <a href="/" className="rounded-xl bg-[#176CE0] px-4 py-2 font-semibold text-white shadow-[inset_0_-4px_0_#0D55BF] hover:bg-[#1561C9]">
+          Ir al inicio
+        </a>
+      </div>
+    );
+  } else if (phase.kind === "done") {
     body = (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 p-10 text-center">
         <svg width="110" height="110" viewBox="-46 -48 92 92" aria-hidden>

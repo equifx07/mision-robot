@@ -1,9 +1,10 @@
 import type { Filters } from "@/lib/dashboard";
 import type { School } from "@/lib/repo";
+import { courseLabel } from "@/lib/divisions";
 import { testOf } from "@/lib/tests";
 
 /** Fila de filtros (formulario GET). El grado se elige en el menú lateral y viaja oculto. */
-export function FiltersBar({ filters, schools, action }: { filters: Filters; schools: School[]; action: string }) {
+export function FiltersBar({ filters, schools, action, compare = true }: { filters: Filters; schools: School[]; action: string; compare?: boolean }) {
   const sel = "mt-1 min-h-[40px] rounded-xl border border-[#D8D3C8] bg-white px-3 text-[15px] text-[#22211F]";
   const label = "flex flex-col text-[13px] font-semibold text-[#55504A]";
   const test = testOf(filters.grade);
@@ -18,15 +19,35 @@ export function FiltersBar({ filters, schools, action }: { filters: Filters; sch
       </div>
       <label className={label}>
         Colegio
-        <select name="colegio" defaultValue={filters.schoolId ?? ""} className={sel}>
+        <select name="colegio" defaultValue={filters.schoolId ? (filters.division ? `${filters.schoolId}:${filters.division}` : filters.schoolId) : ""} className={sel}>
           <option value="">Todos</option>
-          {schools.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
+          {schools.map((s) =>
+            s.divisions.length ? (
+              <optgroup key={s.id} label={s.name}>
+                <option value={s.id}>{s.name} (todos los cursos)</option>
+                {s.divisions.map((d) => (
+                  <option key={d} value={`${s.id}:${d}`}>
+                    {s.name} · {courseLabel(filters.grade, d)}
+                  </option>
+                ))}
+              </optgroup>
+            ) : (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ),
+          )}
         </select>
       </label>
+      {compare && (
+        <label className={label}>
+          Comparar
+        <select name="por" defaultValue={filters.groupBy ?? "colegio"} className={sel}>
+          <option value="colegio">Colegios</option>
+          <option value="curso">Cursos</option>
+        </select>
+        </label>
+      )}
       <label className={label}>
         Experiencia previa
         <select name="exp" defaultValue={filters.priorExp ?? ""} className={sel}>

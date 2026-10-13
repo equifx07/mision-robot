@@ -44,7 +44,7 @@ export async function GET(req: Request) {
   }
 
   if (tipo === "respuestas") {
-    const rows: unknown[][] = [["prueba_id", "estudiante", "colegio", "grado", "estado", "item", "posicion", "parte", "dimension", "tarea", "opcion_elegida_canonica", "correcta", "tiempo_s", "tiempo_tipico_s", "apurada"]];
+    const rows: unknown[][] = [["prueba_id", "estudiante", "colegio", "grado", "curso", "estado", "item", "posicion", "parte", "dimension", "tarea", "opcion_elegida_canonica", "correcta", "tiempo_s", "tiempo_tipico_s", "apurada"]];
     for (const r of scored) {
       test.items.forEach((it, i) => {
         const chosen = r.chosen[it.id];
@@ -53,6 +53,7 @@ export async function GET(req: Request) {
           r.attempt.student_name,
           r.attempt.school_name,
           test.grade,
+          r.attempt.division ?? "",
           r.attempt.status,
           it.id,
           i + 1,
@@ -74,7 +75,7 @@ export async function GET(req: Request) {
   const tasks = (["S", "C", "D", "E"] as const).filter((t) => test.items.some((it) => it.part === "A" && it.task === t));
   const TASK_COL: Record<string, string> = { S: "acierto_elegir", C: "acierto_completar", D: "acierto_arreglar", E: "acierto_comparar" };
   const head = [
-    "prueba_id", "estudiante", "colegio", "grado", "version", "fecha_inicio", "estado", "edad", "experiencia_previa", "genero", "dispositivo", "pantalla",
+    "prueba_id", "estudiante", "colegio", "grado", "curso", "version", "fecha_inicio", "estado", "edad", "experiencia_previa", "genero", "dispositivo", "pantalla",
     "puntaje_total", "puntaje_maximo", "puntaje_parte_a", "puntaje_parte_b", "nivel", "tiempo_total_min", "tiempo_misiones_min",
     "respuestas_apuradas", "caida_final", "ritmo_final_vs_inicio", "senales_atencion",
     ...dims.map((d) => `acierto_${d.label.toLowerCase().replace(/[^a-z0-9]+/gi, "_")}`),
@@ -88,7 +89,7 @@ export async function GET(req: Request) {
     const missionsMs = test.items.reduce((acc, it) => acc + (r.times[it.id] ?? 0), 0);
     const round2 = (x: number) => (Number.isFinite(x) ? Math.round(x * 100) / 100 : "");
     rows.push([
-      a.id, a.student_name, a.school_name, test.grade, a.test_version, a.started_at, a.status, a.age, a.prior_exp, a.gender, a.device, a.screen,
+      a.id, a.student_name, a.school_name, test.grade, a.division ?? "", a.test_version, a.started_at, a.status, a.age, a.prior_exp, a.gender, a.device, a.screen,
       finished ? r.total : "", test.max, finished ? (a.score_a ?? "") : "", finished ? (a.score_b ?? "") : "", finished ? levelOf(test, r.total).name : "",
       a.total_ms ? Math.round(a.total_ms / 6000) / 10 : "",
       missionsMs ? Math.round(missionsMs / 6000) / 10 : "",

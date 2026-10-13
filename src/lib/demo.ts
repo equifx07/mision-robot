@@ -75,6 +75,7 @@ export function generateDemo(opts: DemoOptions): { created: number } {
     const attempt = createAttempt({
       schoolId: school.id,
       grade: test.grade,
+      division: school.divisions.length ? pick(school.divisions) : null,
       studentName: name,
       age: test.grade === "4" ? (Math.random() < 0.8 ? 9 : 10) : Math.random() < 0.8 ? 11 : 12,
       priorExp,

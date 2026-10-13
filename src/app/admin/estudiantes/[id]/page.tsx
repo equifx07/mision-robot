@@ -8,7 +8,8 @@ import { testOf } from "@/lib/tests";
 import { TASK_NAME } from "@/lib/insights";
 import { LEVEL_TONE } from "@/lib/semaforo";
 import { Chip, HEADING } from "@/components/admin/ui";
-import { deleteAttemptAction } from "../../actions";
+import { courseLabel } from "@/lib/divisions";
+import { deleteAttemptAction, setAttemptDivisionAction } from "../../actions";
 import { ConfirmButton } from "../../ConfirmButton";
 import { AnswerReview } from "./AnswerReview";
 
@@ -76,15 +77,35 @@ export default async function StudentDetail({ params }: { params: Promise<{ id: 
           </Link>
           <h1 className={`${HEADING} m-0 text-[32px] font-semibold`}>{attempt.student_name}</h1>
           <p className="m-0 text-[15px] text-[#55504A]">
-            {school?.name ?? "–"} · {test.label} · {new Date(attempt.started_at).toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short" })}
+            {school?.name ?? "–"} · {attempt.division ? courseLabel(test.grade, attempt.division) : `${test.label} sin curso`} · {new Date(attempt.started_at).toLocaleString("es-AR", { dateStyle: "long", timeStyle: "short" })}
           </p>
         </div>
-        <form action={deleteAttemptAction}>
-          <input type="hidden" name="id" value={attempt.id} />
-          <ConfirmButton message="¿Mandar esta prueba a la papelera? Deja de contar en los resultados. Se puede recuperar desde la Papelera." className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
-            Mandar a la papelera
-          </ConfirmButton>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Por si el chico eligió mal el curso. */}
+          <form action={setAttemptDivisionAction} className="flex items-center gap-1.5">
+            <input type="hidden" name="id" value={attempt.id} />
+            <label className="text-sm font-semibold text-[#55504A]" htmlFor="curso">
+              Curso
+            </label>
+            <select id="curso" name="division" defaultValue={attempt.division ?? ""} className="min-h-[36px] rounded-lg border border-[#D8D3C8] bg-white px-2 text-sm">
+              <option value="">Sin curso</option>
+              {[...new Set([...(school?.divisions ?? []), ...(attempt.division ? [attempt.division] : [])])].map((d) => (
+                <option key={d} value={d}>
+                  {courseLabel(test.grade, d)}
+                </option>
+              ))}
+            </select>
+            <button type="submit" className="min-h-[36px] rounded-lg px-3 text-sm font-semibold text-[#3D3A35] hover:bg-[#EFEBE3]">
+              Cambiar
+            </button>
+          </form>
+          <form action={deleteAttemptAction}>
+            <input type="hidden" name="id" value={attempt.id} />
+            <ConfirmButton message="¿Mandar esta prueba a la papelera? Deja de contar en los resultados. Se puede recuperar desde la Papelera." className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50">
+              Mandar a la papelera
+            </ConfirmButton>
+          </form>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">

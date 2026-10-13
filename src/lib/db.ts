@@ -26,18 +26,24 @@ PRAGMA foreign_keys = ON;
  * - 2 (2026-10-07): dos pruebas (4.º y 6.º); el grado reemplaza al curso.
  * - 3 (2026-10-12): papelera. Colegios y pruebas borrados desde el panel quedan con deleted_at y se
  *   pueden recuperar.
+ * - 4 (2026-10-13): cursos. schools.divisions ("N,F,S") y attempts.division ("S"). Al migrar, los
+ *   Northfield quedan con N, F y S, los Faro con A, B y C, y las pruebas de 6.º ya hechas en los
+ *   Northfield quedan en 6.º S (todas las de la primera toma fueron de ese curso).
+ *   También attempts.last_seen_at y attempts.live_where: la última señal de la pestaña abierta y por
+ *   dónde iba (para el panel En vivo).
  *
  * REGLA (los datos no se pueden perder): un cambio de esquema SOLO puede AGREGAR tablas o columnas.
  * Nunca DROP TABLE, nunca DELETE masivo, nunca recrear tablas. Antes de cualquier cambio se hace una
  * copia de seguridad (ver backup.ts).
  */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS schools (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  deleted_at TEXT
+  deleted_at TEXT,
+  divisions TEXT
 );
 
 CREATE TABLE IF NOT EXISTS attempts (
@@ -60,7 +66,10 @@ CREATE TABLE IF NOT EXISTS attempts (
   score INTEGER,
   score_a INTEGER,
   score_b INTEGER,
-  deleted_at TEXT
+  deleted_at TEXT,
+  division TEXT,
+  last_seen_at TEXT,
+  live_where TEXT
 );
 CREATE INDEX IF NOT EXISTS attempts_school ON attempts(school_id);
 CREATE INDEX IF NOT EXISTS attempts_grade ON attempts(grade);
@@ -107,16 +116,34 @@ function open(): Database {
   const columns = (table: string) => db.prepare(`PRAGMA table_info(${table})`).all().map((r) => String(r.name));
   // Una base anterior al esquema 2 no se toca: se avisa en vez de borrar nada.
   if (!columns("attempts").includes("grade")) throw new Error("La base de datos es de una versión anterior (sin grado). No se modifica: revisar a mano.");
-  // Esquema 3: columnas de la papelera (solo se agregan). Antes de tocar nada, una copia.
-  const missing = ["schools", "attempts"].filter((t) => !columns(t).includes("deleted_at"));
-  if (missing.length) {
+  // Columnas nuevas (solo se agregan): papelera (esquema 3) y cursos (esquema 4).
+  const wanted: [string, string][] = [
+    ["schools", "deleted_at"],
+    ["attempts", "deleted_at"],
+    ["schools", "divisions"],
+    ["attempts", "division"],
+    ["attempts", "last_seen_at"],
+    ["attempts", "live_where"],
+  ];
+  const missing = wanted.filter(([t, c]) => !columns(t).includes(c));
+  const version = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
+  if (missing.length || version < SCHEMA_VERSION) {
+    // Antes de tocar nada, una copia.
     const backups = path.join(dir, "backups");
     fs.mkdirSync(backups, { recursive: true });
     const stamp = new Date().toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-");
     db.exec(`VACUUM INTO '${path.join(backups, `mision-robot-${stamp}-migracion.db`).replace(/'/g, "''")}'`);
-    for (const table of missing) db.exec(`ALTER TABLE ${table} ADD COLUMN deleted_at TEXT`);
+    for (const [table, column] of missing) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`);
   }
-  const version = Number(db.prepare("PRAGMA user_version").get()?.user_version ?? 0);
+  if (version < 4) {
+    // Cursos iniciales (solo completa lo que está vacío; no pisa nada cargado).
+    db.exec(`
+      UPDATE schools SET divisions = 'N,F,S' WHERE divisions IS NULL AND name LIKE 'Northfield%';
+      UPDATE schools SET divisions = 'A,B,C' WHERE divisions IS NULL AND name LIKE 'Faro%';
+      UPDATE attempts SET division = 'S'
+        WHERE division IS NULL AND grade = '6' AND school_id IN (SELECT id FROM schools WHERE name LIKE 'Northfield%');
+    `);
+  }
   if (version < SCHEMA_VERSION) db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   return db;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type School = { id: number; name: string };
+type School = { id: number; name: string; divisions: string[] };
 type Grade = "4" | "6";
 
 /** Edades que se ofrecen según el grado. */
@@ -28,6 +28,7 @@ export function StartForm() {
   const [name, setName] = useState("");
   const [grade, setGrade] = useState<Grade | null>(null);
   const [schoolId, setSchoolId] = useState<number | "">("");
+  const [division, setDivision] = useState<string>("");
   const [age, setAge] = useState<string>("");
   const [priorExp, setPriorExp] = useState<string>("");
   const [gender, setGender] = useState<string>("");
@@ -62,6 +63,7 @@ export function StartForm() {
     if (name.trim().length < 2) return setError("Escribí tu nombre y apellido.");
     if (!grade) return setError("Elegí si sos de 4.º o de 6.º.");
     if (schoolId === "") return setError("Elegí tu colegio.");
+    if (divisions.length > 0 && !division) return setError("Elegí tu curso.");
     if (!priorExp) return setError("Contanos si tuviste clases de programación antes.");
     setSending(true);
     try {
@@ -72,6 +74,7 @@ export function StartForm() {
           studentName: name.trim(),
           schoolId,
           grade,
+          division: division || null,
           age: age || null,
           priorExp,
           gender: gender || null,
@@ -93,6 +96,7 @@ export function StartForm() {
     }
   }
 
+  const divisions = (schools ?? []).find((s) => s.id === schoolId)?.divisions ?? [];
   const field = "w-full rounded-xl border-2 border-slate-300 bg-white px-3 py-2.5 text-base focus:border-blue-500 focus:outline-none";
   const label = "mb-1 block text-sm font-semibold text-slate-700";
 
@@ -163,7 +167,15 @@ export function StartForm() {
             <label className={label} htmlFor="school">
               Colegio
             </label>
-            <select id="school" className={field} value={schoolId} onChange={(e) => setSchoolId(e.target.value ? Number(e.target.value) : "")}>
+            <select
+              id="school"
+              className={field}
+              value={schoolId}
+              onChange={(e) => {
+                setSchoolId(e.target.value ? Number(e.target.value) : "");
+                setDivision("");
+              }}
+            >
               <option value="">Elegí tu colegio</option>
               {(schools ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
@@ -173,6 +185,26 @@ export function StartForm() {
             </select>
           </div>
         </div>
+        {divisions.length > 0 && (
+          <fieldset>
+            <legend className={label}>Curso</legend>
+            <div className="flex flex-wrap gap-2">
+              {divisions.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDivision(d)}
+                  aria-pressed={division === d}
+                  className={`min-h-[52px] min-w-[84px] flex-1 rounded-xl border-2 px-3 text-xl font-bold ${
+                    division === d ? "border-[#176CE0] bg-[#EEF4FF] text-[#0D55BF]" : "border-slate-300 bg-white text-slate-700 hover:border-[#93B8F0]"
+                  }`}
+                >
+                  {grade}.º {d}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
         {schools && schools.length === 0 && (
           <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">Todavía no hay colegios cargados. Hay que cargarlos desde el panel de administración.</p>
         )}

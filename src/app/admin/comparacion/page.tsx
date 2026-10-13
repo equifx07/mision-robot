@@ -29,7 +29,10 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PageHeader title="Comparación entre colegios" subtitle={`Se comparan solo chicos del mismo grado: todos hicieron las mismas ${d.test.max} misiones de la prueba de ${d.test.label}. Con pocos chicos por colegio, las diferencias chicas todavía no son confiables.`} />
+      <PageHeader
+        title={d.word("Comparación entre colegios")}
+        subtitle={d.word(`Se comparan solo chicos del mismo grado: todos hicieron las mismas ${d.test.max} misiones de la prueba de ${d.test.label}. Con pocos chicos por colegio, las diferencias chicas todavía no son confiables.`) + " En \"Comparar\" podés elegir colegios o cursos."}
+      />
       <FiltersBar filters={filters} schools={d.schools} action="/admin/comparacion" />
 
       {s.n === 0 ? (
@@ -37,15 +40,15 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
       ) : (
         <>
           <SectionIndex items={sections} />
-          {!many && <Notice>Con los filtros actuales hay datos de un solo colegio. Sacá el filtro de colegio para comparar.</Notice>}
+          {!many && <Notice>{filters.groupBy === "curso" ? "Con los filtros actuales hay datos de un solo curso." : "Con los filtros actuales hay datos de un solo colegio. Sacá el filtro de colegio para comparar."}</Notice>}
 
           <ExplainedSection
             id="promedio"
             kicker={kicker("PROMEDIO")}
-            question="¿Qué colegio tuvo mejor puntaje promedio?"
-            muestra={`La barra es el puntaje promedio de cada colegio, de 0 a ${d.test.max}, pintada según el nivel en el que cae. La línea fina es el rango donde probablemente está el promedio real.`}
+            question={d.word("¿Qué colegio tuvo mejor puntaje promedio?")}
+            muestra={d.word(`La barra es el puntaje promedio de cada colegio, de 0 a ${d.test.max}, pintada según el nivel en el que cae. La línea fina es el rango donde probablemente está el promedio real.`)}
             medicion="Promedio del puntaje total de los chicos que terminaron la prueba. El rango es el intervalo de confianza del 95%: con otros chicos del mismo colegio, el promedio caería ahí 95 de cada 100 veces. Con pocos chicos, el rango se ensancha."
-            observa={meansInsight(d.test, groups)}
+            observa={d.word(meansInsight(d.test, groups))}
           >
             <Card>
               <MeanBars
@@ -62,9 +65,9 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
             id="niveles"
             kicker={kicker("NIVELES")}
             question="¿Cómo se reparten sus chicos en los niveles?"
-            muestra="Cada barra es un colegio y suma todos sus chicos. Cada color es un nivel; el número de adentro es cuántos chicos hay en ese nivel."
+            muestra={d.word("Cada barra es un colegio y suma todos sus chicos. Cada color es un nivel; el número de adentro es cuántos chicos hay en ese nivel.")}
             medicion={`Cada chico se ubica en un nivel según su puntaje total: ${levelsText(d.test)}.`}
-            observa={levelsBySchoolInsight(groups)}
+            observa={d.word(levelsBySchoolInsight(groups))}
           >
             <Card>
               <LevelStackRows
@@ -77,10 +80,10 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
           <ExplainedSection
             id="parejos"
             kicker={kicker("QUÉ TAN PAREJOS")}
-            question="¿Los chicos de cada colegio rinden parecido entre sí?"
-            muestra="Cómo se reparten los puntajes dentro de cada colegio. La caja abarca a la mitad central de los chicos; cuanto más angosta, más parejo es el grupo."
+            question={d.word("¿Los chicos de cada colegio rinden parecido entre sí?")}
+            muestra={d.word("Cómo se reparten los puntajes dentro de cada colegio. La caja abarca a la mitad central de los chicos; cuanto más angosta, más parejo es el grupo.")}
             medicion="Se ordenan los puntajes de cada colegio. La caja va del primer cuartil (el 25% de abajo) al tercero (el 25% de arriba); la raya gruesa es la mediana y la línea fina va del puntaje más bajo al más alto. La caja se pinta según el nivel de la mediana."
-            observa={spreadInsight(groups)}
+            observa={d.word(spreadInsight(groups))}
           >
             <Card>
               <SpreadBoxes test={d.test} rows={many ? groups.map((g) => ({ label: g.school.name, s: g.summary })) : [{ label: groups[0]?.school.name ?? "Todos", s }]} />
@@ -91,10 +94,10 @@ export default async function ComparisonPage({ searchParams }: { searchParams: P
             <ExplainedSection
               id="diferencias"
               kicker={kicker("TAMAÑO DE LAS DIFERENCIAS")}
-              question="¿Las diferencias entre colegios son grandes?"
-              muestra="Cuánto rinde el colegio de la fila comparado con el de la columna. Verde: la fila rinde más. Rojo: rinde menos. Gris: son parecidos."
+              question={d.word("¿Las diferencias entre colegios son grandes?")}
+              muestra={d.word("Cuánto rinde el colegio de la fila comparado con el de la columna. Verde: la fila rinde más. Rojo: rinde menos. Gris: son parecidos.")}
               medicion="Con la d de Cohen: la diferencia entre los dos promedios dividida por cuánto varían los puntajes dentro de los colegios. Sirve para comparar colegios de distinto tamaño. Referencia habitual: 0,2 pequeña, 0,5 mediana, 0,8 grande."
-              observa={cohenInsight(groups)}
+              observa={d.word(cohenInsight(groups))}
             >
               <Card className="flex flex-col gap-5">
                 <CohenMatrix groups={groups.map((g) => ({ name: g.school.name, scores: g.summary.scores }))} />

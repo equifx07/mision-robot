@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { loadDashboard, parseFilters } from "@/lib/dashboard";
 import { attentionStatus, loadReference, SIGNAL_LABEL, studentSignals } from "@/lib/patrones";
+import { courseLabel } from "@/lib/divisions";
 import { LEVEL_TONE } from "@/lib/semaforo";
 import { fmt, levelOf } from "@/lib/stats";
 import { C, Chip, PageHeader } from "@/components/admin/ui";
@@ -18,6 +19,7 @@ type Dir = "asc" | "desc";
 const COLUMNS: { key: string; label: string; first: Dir }[] = [
   { key: "nombre", label: "Nombre", first: "asc" },
   { key: "colegio", label: "Colegio", first: "asc" },
+  { key: "curso", label: "Curso", first: "asc" },
   { key: "fecha", label: "Fecha", first: "desc" },
   { key: "estado", label: "Estado", first: "asc" },
   { key: "total", label: "Total", first: "desc" },
@@ -59,6 +61,8 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
         return a.student_name;
       case "colegio":
         return a.school_name;
+      case "curso":
+        return a.division ? `${a.school_name} ${a.division}` : null;
       case "fecha":
         return a.started_at;
       case "estado":
@@ -108,7 +112,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader title="Estudiantes" subtitle={`Una fila por prueba de ${d.test.label}. Tocá un título para ordenar y un nombre para ver el detalle misión por misión.`} />
-      <FiltersBar filters={filters} schools={d.schools} action="/admin/estudiantes" />
+      <FiltersBar filters={filters} schools={d.schools} action="/admin/estudiantes" compare={false} />
       <div className="overflow-x-auto rounded-[20px] border bg-white" style={{ borderColor: C.line }}>
         <table className="min-w-full text-sm">
           <thead className="text-left text-xs font-bold tracking-[0.06em]" style={{ background: "#FAF8F4", color: C.muted }}>
@@ -142,6 +146,7 @@ export default async function StudentsPage({ searchParams }: { searchParams: Pro
                   </Link>
                 </td>
                 <td className="px-3 py-2.5">{a.school_name}</td>
+                <td className="whitespace-nowrap px-3 py-2.5">{a.division ? courseLabel(a.grade, a.division) : "–"}</td>
                 <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">{new Date(a.started_at).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}</td>
                 <td className="px-3 py-2.5">{STATUS[a.status] ?? a.status}</td>
                 <td className="px-3 py-2.5 font-semibold tabular-nums">{finished ? `${r.total}/${d.test.max}` : "–"}</td>

@@ -53,7 +53,7 @@ export default async function ConceptsPage({ searchParams }: { searchParams: Pro
             question="¿Qué conceptos dominan y cuáles les cuestan?"
             muestra="El porcentaje de respuestas correctas en cada concepto de programación (Parte A, el robot) y en cada práctica de lógica (Parte B). La primera columna es el total; las otras, cada colegio."
             medicion="Cada concepto y cada práctica tiene una o más misiones (debajo de cada nombre se ve cuáles). Se juntan todas las respuestas de los chicos a esas misiones y se calcula qué porcentaje fue correcto. Donde hay una sola misión, el número cambia mucho con pocos chicos."
-            observa={dimsInsight(d.test, s, groups)}
+            observa={d.word(dimsInsight(d.test, s, groups))}
           >
             <Card className="flex flex-col gap-5">
               <ToneHeatmap
@@ -73,7 +73,7 @@ export default async function ConceptsPage({ searchParams }: { searchParams: Pro
             question="¿Qué tipo de tarea les cuesta más?"
             muestra="El porcentaje de acierto según lo que había que hacer en la misión del robot: elegir el programa, completar un hueco o arreglar un error."
             medicion={`Cada misión de la Parte A tiene un tipo de tarea: ${perTask.S} de elegir, ${perTask.C} de completar y ${perTask.D} de arreglar${perTask.E ? `, y ${perTask.E} de comparar` : ""}. Se calcula el porcentaje de respuestas correctas en cada grupo.`}
-            observa={tasksInsight(s, perTask)}
+            observa={d.word(tasksInsight(s, perTask))}
           >
             <Card className="flex flex-col gap-5">
               <ToneHeatmap columns={columns} groups={[{ rows: taskRows }]} />
@@ -87,7 +87,7 @@ export default async function ConceptsPage({ searchParams }: { searchParams: Pro
             question="¿Cómo le fue a cada colegio en cada misión?"
             muestra={`El porcentaje de chicos que resolvió bien cada una de las ${d.test.max} misiones, en total y en cada colegio.`}
             medicion="Para cada misión: chicos que la respondieron bien dividido por chicos que terminaron la prueba. Con pocos chicos por colegio, un solo chico cambia mucho el porcentaje."
-            observa={itemsBySchoolInsight(s, groups, d.test.ids)}
+            observa={d.word(itemsBySchoolInsight(s, groups, d.test.ids))}
           >
             <Card className="flex flex-col gap-5">
               <ToneHeatmap

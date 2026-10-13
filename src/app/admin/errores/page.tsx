@@ -77,7 +77,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
   const signals = d.scored.map((r) => studentSignals(r, ref));
   const countSignals = (rows: typeof signals) => ({ n: rows.length, none: rows.filter((s) => s.signals.length === 0).length, one: rows.filter((s) => s.signals.length === 1).length, many: rows.filter((s) => s.signals.length >= 2).length });
   const total = countSignals(signals);
-  const bySchoolSignals = groups.map((g) => ({ name: g.school.name, ...countSignals(signals.filter((s) => s.scored.attempt.school_id === g.school.id)) }));
+  const bySchoolSignals = groups.map((g) => ({ name: g.school.name, ...countSignals(signals.filter((s) => g.scored.includes(s.scored))) }));
   const flagged = signals.filter((s) => s.signals.length >= 2).sort((a, b) => b.signals.length - a.signals.length || b.rushed - a.rushed);
   const single = signals.filter((s) => s.signals.length === 1).sort((a, b) => b.rushed - a.rushed);
   const stackParts = (c: ReturnType<typeof countSignals>) => [
@@ -172,7 +172,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
             wide
             muestra="Cada barra es una misión, en el orden en que la hacen los chicos; la altura es el porcentaje que se equivocó. La línea punteada es lo esperado para su lugar en la prueba. El color dice por qué se equivocan."
             medicion="Errores: respuestas incorrectas sobre los chicos que la respondieron. Línea esperada: el promedio de errores de hasta 2 misiones antes y 2 después, de la misma parte. Una misión no sigue la línea si tiene al menos 15 puntos más de errores que sus vecinas y la diferencia no es casualidad. Si el salto sigue entre las respuestas con tiempo normal, es dificultad. Si desaparece al sacar las apuradas, o si 3 de cada 10 errores o más son respuestas apuradas, es apuro."
-            observa={errorsInsight(patterns, n)}
+            observa={d.word(errorsInsight(patterns, n))}
           >
             <Card>
               <ErrorLineChart patterns={patterns} />
@@ -186,7 +186,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
             wide
             muestra="Las misiones ordenadas de más a menos errores. La barra reparte a todos los chicos: los que acertaron, los que se equivocaron con tiempo normal, los que contestaron apurados y los que no la respondieron. Salto: cuántos puntos de error tiene por encima (+) o por debajo (−) de la línea."
             medicion="Respuesta apurada: el chico tardó menos de la décima parte de lo que tarda el chico típico en esa misión (nunca menos de 3 s ni más de 10 s); en ese tiempo no alcanza a leerla. El tiempo típico es la mediana de todas las pruebas, así el umbral es el mismo para todos los colegios."
-            observa={thinkingInsight(patterns)}
+            observa={d.word(thinkingInsight(patterns))}
           >
             <div className="overflow-x-auto rounded-[20px] border bg-white px-5 pb-3 pt-2" style={{ borderColor: C.line }}>
               <div className="min-w-[1020px]">
@@ -231,11 +231,11 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
             wide
             muestra="Arriba, misión por misión, cuántos de cada 100 chicos contestaron apurados y cuántos no la respondieron. Abajo, el porcentaje de respuestas apuradas al principio, en el medio y al final de la prueba, en total y por colegio."
             medicion="Si el apuro crece hacia el final, hay chicos que llegan cansados o desatentos a las últimas misiones. Para confirmar que son respuestas al azar se mira cuántas acertaron: con 4 opciones, al azar se acierta 1 de cada 4 (25%)."
-            observa={fatigueInsight(
+            observa={d.word(fatigueInsight(
               thirds,
               acc,
               schoolThirds.map((s) => ({ name: s.name, final: s.t[2].share })),
-            )}
+            ))}
           >
             <Card className="flex flex-col gap-7">
               <RushCurve patterns={patterns} />
@@ -269,7 +269,7 @@ export default async function ErrorsPage({ searchParams }: { searchParams: Promi
             wide
             muestra="Cuántos chicos no muestran señales, cuántos muestran una y cuántos varias, en total y por colegio. Debajo, los que muestran varias, con un enlace a su prueba."
             medicion="Se miran 3 señales en cada chico. Respuestas apuradas: 3 o más. Rinde menos al final: comparado con el resto en las mismas misiones, en el último tercio de la prueba le va al menos 40 puntos peor que en el primer tercio. Se apuró al final: en el último tercio va el doble de rápido que en el primero, comparado con el tiempo típico de cada misión. Una sola señal puede ser casualidad; varias juntas sugieren falta de atención."
-            observa={signalsInsight(bySchoolSignals, total)}
+            observa={d.word(signalsInsight(bySchoolSignals, total))}
           >
             <Card className="flex flex-col gap-6">
               <CountStackRows

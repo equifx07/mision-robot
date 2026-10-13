@@ -14,7 +14,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     studentName: attempt.student_name,
     grade: attempt.grade,
     startedAt: attempt.started_at,
-    status: attempt.status,
+    // "cancelled": la descartaron desde el panel (está en la papelera).
+    status: attempt.deleted_at ? "cancelled" : attempt.status,
     optionOrders: attempt.option_orders,
     answers,
   });

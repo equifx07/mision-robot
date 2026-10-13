@@ -31,6 +31,7 @@ export async function POST(req: Request) {
     const attempt = createAttempt({
       schoolId,
       grade,
+      division: body.division ? String(body.division).slice(0, 8) : null,
       studentName: name,
       age,
       priorExp,

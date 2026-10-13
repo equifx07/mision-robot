@@ -76,7 +76,7 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
             question="¿Cuánto tardan en hacer toda la prueba?"
             muestra="Los minutos que tardó cada chico, en total y por colegio. La caja oscura es la prueba completa; la clara, solo el tiempo resolviendo misiones."
             medicion="Prueba completa: desde que el chico empieza (después de poner sus datos) hasta que termina la última misión (no hay límite de tiempo); incluye la explicación y las prácticas. Resolviendo misiones: la suma de lo que tardó en cada misión. Se usa la mediana (el chico del medio) porque unos pocos muy lentos o muy rápidos moverían mucho el promedio."
-            observa={totalTimeInsight(all, bySchool)}
+            observa={d.word(totalTimeInsight(all, bySchool))}
           >
             <Card>
               <MinutesBoxes rows={[{ label: "Todos", sub: chicos(n), total: all.total, missions: all.missions }, ...(many ? bySchool.map((s) => ({ label: s.name, sub: chicos(s.n), total: s.total, missions: s.missions })) : [])]} />
@@ -90,7 +90,7 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
             wide
             muestra="Una columna por misión, en el orden de la prueba. La barra es el tiempo del chico típico; la línea, lo que tardó la mitad central de los chicos. Debajo de cada misión, sus segundos."
             medicion="Tiempo de una misión: desde que aparece en la pantalla hasta que el chico toca Confirmar. No incluye la explicación ni la práctica que vienen antes de algunas misiones. Si el chico recarga la página, el tiempo sigue contando desde que la misión apareció por primera vez."
-            observa={itemTimeInsight(times)}
+            observa={d.word(itemTimeInsight(times))}
           >
             <Card>
               <ItemTimeChart times={times} />
@@ -104,7 +104,7 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
             wide
             muestra="El tiempo típico de cada misión en cada colegio, en segundos. Cuanto más oscuro, más tiempo."
             medicion="Mediana de los segundos de los chicos de cada colegio en cada misión. Tardar más no es bueno ni malo por sí solo: conviene mirarlo junto con el acierto (en Conceptos y prácticas)."
-            observa={schoolTimeInsight(schoolRows, allMedians)}
+            observa={d.word(schoolTimeInsight(schoolRows, allMedians))}
           >
             <Card className="flex flex-col gap-5">
               <div className="overflow-x-auto">
@@ -139,7 +139,7 @@ export default async function TimesPage({ searchParams }: { searchParams: Promis
             wide
             muestra="Para cada misión, el tiempo típico de los que la acertaron (verde) y el de los que se equivocaron (rojo)."
             medicion="Mediana de los segundos de cada grupo, sin contar las respuestas apuradas (esas se analizan en Errores y atención). Si los que se equivocan tardan más, la misión los trabó; si tardan menos, la contestaron sin pensarla del todo."
-            observa={rightWrongInsight(times)}
+            observa={d.word(rightWrongInsight(times))}
           >
             <Card>
               <RightWrongChart times={times} />

@@ -60,7 +60,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
             question="¿Cómo les fue en general?"
             muestra="Arriba, cuántos chicos quedaron en cada nivel. Abajo, el puntaje de cada uno: cada barra es la cantidad de chicos que sacó ese puntaje, pintada según su nivel."
             medicion={`Un punto por cada misión bien resuelta: ${d.test.max} en total (${d.test.partA} del robot y ${d.test.partB} de lógica). Los niveles son cortes provisorios sobre ese puntaje (${levelsText(d.test)}) y se van a recalibrar después del piloto.`}
-            observa={levelsInsight(d.test, s, d.bySchool)}
+            observa={d.word(levelsInsight(d.test, s, d.bySchool))}
           >
             <Card className="flex flex-col gap-6">
               <div className="flex flex-col gap-2.5">
@@ -90,7 +90,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
                   <span>
                     <Chip tone={h.tone}>{h.badge}</Chip>
                   </span>
-                  <p className="m-0 text-[17px] font-semibold leading-snug">{h.text}</p>
+                  <p className="m-0 text-[17px] font-semibold leading-snug">{d.word(h.text)}</p>
                   <Link href={h.href} className="mt-auto text-[15px] font-bold text-[#22211F] underline-offset-2 hover:underline">
                     {h.cta} →
                   </Link>
