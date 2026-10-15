@@ -1,8 +1,8 @@
 "use client";
 
 // Explicación para 4.º: el docente proyecta los ejercicios uno atrás del otro y los resuelve con la clase.
-// Igual que en la prueba, pero al apretar "Probar" se ve el resultado: en la parte A el robot ejecuta la
-// opción elegida (como en el tutorial) y en la parte B se dice si es correcta.
+// Igual que en la prueba, pero al apretar "Probar" el robot ejecuta la opción elegida (como en el tutorial)
+// y se dice si es correcta.
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";

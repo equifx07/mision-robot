@@ -88,11 +88,11 @@ function Bead({ x, y, kind, r = 13 }: { x: number; y: number; kind: "o" | "t"; r
   );
 }
 
-// B2 · Collar con patrón ● ● ▲ (la Explicación usa ● ▲ ▲)
-function Collar({ pattern = "ootootootoo", label = "Collar: empieza en el nudo; círculo, círculo, triángulo, y así sigue" }: { pattern?: string; label?: string }) {
-  const beads = pattern.split("") as ("o" | "t")[];
+// B2 · Collar con patrón ● ● ▲
+function Collar() {
+  const beads = "ootootootoo".split("") as ("o" | "t")[];
   return (
-    <Svg w={500} h={96} label={label} maxW={500}>
+    <Svg w={500} h={96} label="Collar: empieza en el nudo; círculo, círculo, triángulo, y así sigue" maxW={500}>
       <line x1="16" y1="46" x2="486" y2="46" stroke="#8A7E6B" strokeWidth="3" />
       <circle cx="24" cy="46" r="8" fill="#4A4036" />
       <text x="24" y="82" fontSize="13" fontWeight="700" textAnchor="middle" fill={MUTED}>
@@ -186,11 +186,10 @@ function DotCard({ x, y, n, w = 70, h = 96, highlight, dim }: { x: number; y: nu
   );
 }
 
-// B4 · Tarjetas de puntos (ejemplo: 4 + 1 = 5; la Explicación usa 2 + 1 = 3)
-function Tarjetas({ example = [4, 1] }: { example?: [number, number] }) {
-  const sum = example[0] + example[1];
+// B4 · Tarjetas de puntos
+function Tarjetas() {
   return (
-    <Svg w={520} h={130} label={`Tarjetas de 8, 4, 2 y 1 puntos. Ejemplo: el ${sum} se forma con las tarjetas ${example[0]} y ${example[1]}`} maxW={520}>
+    <Svg w={520} h={130} label="Tarjetas de 8, 4, 2 y 1 puntos. Ejemplo: el 5 se forma con las tarjetas 4 y 1" maxW={520}>
       <DotCard x={10} y={14} n={8} />
       <DotCard x={92} y={14} n={4} />
       <DotCard x={174} y={14} n={2} />
@@ -199,13 +198,13 @@ function Tarjetas({ example = [4, 1] }: { example?: [number, number] }) {
       <text x="360" y="30" fontSize="14" fontWeight="700" fill={MUTED}>
         Ejemplo
       </text>
-      <DotCard x={360} y={40} n={example[0]} w={50} h={70} highlight />
+      <DotCard x={360} y={40} n={4} w={50} h={70} highlight />
       <text x="420" y="82" fontSize="20" fontWeight="800" fill={INK}>
         +
       </text>
-      <DotCard x={436} y={40} n={example[1]} w={50} h={70} highlight />
+      <DotCard x={436} y={40} n={1} w={50} h={70} highlight />
       <text x="496" y="82" fontSize="20" fontWeight="800" fill={INK}>
-        = {sum}
+        = 5
       </text>
     </Svg>
   );
@@ -258,35 +257,6 @@ function Mapa() {
       <Node x={260} y={44} label="Kiosco" color="#BFD6FA" />
       <Node x={260} y={196} label="Club" color="#B9E7C9" />
       <Node x={450} y={120} label="Plaza" color="#FBC5D6" />
-    </Svg>
-  );
-}
-
-// Explicación · Mapa de la casa a la escuela (más corto: por la plaza, 5 cuadras)
-function MapaX() {
-  return (
-    <Svg w={520} h={270} label="Mapa: Casa, Panadería, Plaza y Escuela unidos por caminos con su cantidad de cuadras" maxW={520}>
-      <g stroke="#8C97AB" strokeWidth="6" strokeLinecap="round" fill="none">
-        <line x1="70" y1="120" x2="260" y2="44" />
-        <line x1="260" y1="44" x2="450" y2="120" />
-        <line x1="70" y1="120" x2="260" y2="196" />
-        <line x1="260" y1="196" x2="450" y2="120" />
-        <line x1="260" y1="44" x2="260" y2="196" />
-        <path d="M 70 120 C 110 290, 410 290, 450 120" />
-      </g>
-      <Peso x={160} y={75} n={2} />
-      <Peso x={360} y={75} n={4} />
-      <Peso x={160} y={165} n={3} />
-      <Peso x={360} y={165} n={2} />
-      <Peso x={260} y={120} n={2} />
-      <Peso x={260} y={247} n={7} />
-      <text x="330" y="252" fontSize="13" fontWeight="700" fill={MUTED}>
-        avenida
-      </text>
-      <Node x={70} y={120} label="Casa" color="#FFE08A" />
-      <Node x={260} y={44} label="Panadería" color="#BFD6FA" />
-      <Node x={260} y={196} label="Plaza" color="#B9E7C9" />
-      <Node x={450} y={120} label="Escuela" color="#FBC5D6" />
     </Svg>
   );
 }
@@ -346,9 +316,10 @@ function Fila() {
 }
 
 // B7 · Fila de luces
-function Luces({ on = [true, false, true, true, false, true] }: { on?: boolean[] }) {
+function Luces() {
+  const on = [true, false, true, true, false, true];
   return (
-    <Svg w={500} h={150} label={`Fila de 6 luces: ${on.map((x) => (x ? "prendida" : "apagada")).join(", ")}`} maxW={500}>
+    <Svg w={500} h={150} label="Fila de 6 luces: prendida, apagada, prendida, prendida, apagada, prendida" maxW={500}>
       <Robot x={36} y={62} scale={1} />
       {on.map((isOn, i) => (
         <g key={i} transform={`translate(${112 + i * 64} 48)`}>
@@ -406,9 +377,9 @@ function Nope({ x, y, r = 24 }: { x: number; y: number; r?: number }) {
 }
 
 // B8 · Puerta, llave, luz y gema
-function Puerta({ gem = true }: { gem?: boolean }) {
+function Puerta() {
   return (
-    <Svg w={gem ? 500 : 380} h={150} label={gem ? "Puerta, llave, luz verde o roja y gema" : "Puerta, llave y luz verde o roja"} maxW={gem ? 500 : 380}>
+    <Svg w={500} h={150} label="Puerta, llave, luz verde o roja y gema" maxW={500}>
       <rect x="16" y="14" width="80" height="122" rx="8" fill="#B45309" stroke="#78350F" strokeWidth="3" />
       <circle cx="80" cy="78" r="6" fill="#FDE68A" stroke="#78350F" strokeWidth="2" />
       <Key x={170} y={66} />
@@ -419,14 +390,10 @@ function Puerta({ gem = true }: { gem?: boolean }) {
       <text x="306" y="120" textAnchor="middle" fontSize="14" fontWeight="700" fill={MUTED}>
         luz
       </text>
-      {gem && (
-        <>
-          <Gem x={420} y={66} s={1.3} />
-          <text x="420" y="120" textAnchor="middle" fontSize="14" fontWeight="700" fill={MUTED}>
-            gema
-          </text>
-        </>
-      )}
+      <Gem x={420} y={66} s={1.3} />
+      <text x="420" y="120" textAnchor="middle" fontSize="14" fontWeight="700" fill={MUTED}>
+        gema
+      </text>
     </Svg>
   );
 }
@@ -449,17 +416,6 @@ export function Figure({ id }: { id: string }) {
       return <Luces />;
     case "puerta":
       return <Puerta />;
-    // Explicación (4.º)
-    case "collar-x":
-      return <Collar pattern="ottottottot" label="Collar: empieza en el nudo; círculo, triángulo, triángulo, y así sigue" />;
-    case "tarjetas-x":
-      return <Tarjetas example={[2, 1]} />;
-    case "mapa-x":
-      return <MapaX />;
-    case "luces-x":
-      return <Luces on={[false, true, false, false, true, false]} />;
-    case "puerta-x":
-      return <Puerta gem={false} />;
     default:
       return null;
   }
@@ -494,25 +450,11 @@ function CollarOption({ beads }: { beads: ("o" | "t")[] }) {
   );
 }
 
-const COLLAR_X_OPTS: ("o" | "t")[][] = [
-  ["o", "t"],
-  ["o", "o", "t"],
-  ["o", "t", "t"],
-  ["t", "t", "o"],
-];
-
 const CARD_OPTS = [
   [8, 2, 1],
   [8, 4],
   [4, 2, 1],
   [8, 4, 1],
-];
-
-const CARD_X_OPTS = [
-  [4, 2],
-  [4, 1],
-  [4, 2, 1],
-  [2, 1],
 ];
 
 function CardsOption({ cards }: { cards: number[] }) {
@@ -550,26 +492,17 @@ const DOOR_OPTS: { hasKey: boolean; green: boolean; gem: boolean }[] = [
   { hasKey: true, green: true, gem: true },
 ];
 
-/** gem undefined: situación sin gema (Explicación). */
-function DoorOption({ hasKey, green, gem }: { hasKey: boolean; green: boolean; gem?: boolean }) {
-  const w = gem === undefined ? 150 : 220;
+function DoorOption({ hasKey, green, gem }: { hasKey: boolean; green: boolean; gem: boolean }) {
   return (
-    <svg viewBox={`0 0 ${w} 76`} width={w} height={76} role="img" aria-label={`${hasKey ? "tiene la llave" : "no tiene la llave"}, luz ${green ? "verde" : "roja"}${gem === undefined ? "" : gem ? ", lleva una gema" : ", no lleva gema"}`}>
+    <svg viewBox="0 0 220 76" width={220} height={76} role="img" aria-label={`${hasKey ? "tiene la llave" : "no tiene la llave"}, luz ${green ? "verde" : "roja"}, ${gem ? "lleva una gema" : "no lleva gema"}`}>
       <Key x={22} y={36} s={0.9} />
       {!hasKey && <Nope x={38} y={36} />}
       <TrafficLight x={110} y={38} green={green} s={0.95} />
-      {gem !== undefined && <Gem x={184} y={36} s={1.1} />}
-      {gem === false && <Nope x={184} y={36} />}
+      <Gem x={184} y={36} s={1.1} />
+      {!gem && <Nope x={184} y={36} />}
     </svg>
   );
 }
-
-const DOOR_X_OPTS: { hasKey: boolean; green: boolean }[] = [
-  { hasKey: true, green: false },
-  { hasKey: false, green: true },
-  { hasKey: true, green: true },
-  { hasKey: false, green: false },
-];
 
 /** Opción dibujada de un ítem de la Parte B (`index` es el índice original de la opción). */
 export function OptionFigure({ id, index }: { id: string; index: number }) {
@@ -582,12 +515,6 @@ export function OptionFigure({ id, index }: { id: string; index: number }) {
       return <RowOption nums={ROW_OPTS[index]} />;
     case "puerta":
       return <DoorOption {...DOOR_OPTS[index]} />;
-    case "collar-x":
-      return <CollarOption beads={COLLAR_X_OPTS[index]} />;
-    case "tarjetas-x":
-      return <CardsOption cards={CARD_X_OPTS[index]} />;
-    case "puerta-x":
-      return <DoorOption {...DOOR_X_OPTS[index]} />;
     default:
       return null;
   }
