@@ -1,4 +1,5 @@
-// Explicación para 4.º: un ejercicio de cada formato de la parte A de la prueba, para resolverlo en clase.
+// Explicación para 4.º y 5.º (hacen la misma prueba): un ejercicio de cada formato de la parte A,
+// para resolverlo en clase.
 // El docente elige una opción y la prueba: el robot la ejecuta y se ve si está bien o mal.
 // La parte B (desafíos de lógica) no se practica acá. Son ejercicios NUEVOS (parecidos, no iguales a los
 // de la prueba) y no se guardan ni cuentan para nada.

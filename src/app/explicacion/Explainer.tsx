@@ -93,7 +93,7 @@ function Exercise({ ex, go }: { ex: number; go: (i: number) => void }) {
             <svg width="34" height="34" viewBox="-26 -30 52 56" aria-hidden>
               <Robot x={0} y={0} scale={0.95} />
             </svg>
-            Práctica en clase · 4.º
+            Práctica en clase · 4.º y 5.º
           </div>
           <nav aria-label="Ejercicios" className="flex flex-1 flex-wrap gap-1.5">
             {EXPLAINED.map((e, i) => (

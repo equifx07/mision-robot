@@ -1,4 +1,4 @@
-// Cursos (divisiones) de cada colegio: por ejemplo N, F y S, o A, B y C. Son los mismos para 4.º y 6.º.
+// Cursos (divisiones) de cada colegio: por ejemplo N, F y S, o A, B y C. Son los mismos para 4.º, 5.º y 6.º.
 // Se guardan en schools.divisions como lista separada por comas ("N,F,S").
 
 /** Lee la lista escrita en el panel ("A, B, C" o "N F S"): letras en mayúscula, sin repetir. */

@@ -69,15 +69,15 @@ export function generateDemo(opts: DemoOptions): { created: number } {
     while (usedNames.has(name)) name = `${pick(FIRST)} ${pick(LAST)}`;
     usedNames.add(name);
     const priorExp = pick(["nunca", "nunca", "algunas", "algunas", "siempre"]);
-    // Los de 4.º resuelven con menos soltura las mismas misiones.
-    const gradeShift = test.grade === "4" ? -0.6 : 0;
+    // Los de 4.º (y algo menos los de 5.º) resuelven con menos soltura las mismas misiones.
+    const gradeShift = test.grade === "4" ? -0.6 : test.grade === "5" ? -0.3 : 0;
     const ability = (opts.abilityShift ?? 0) + gradeShift + gauss() * 0.9 + (priorExp === "siempre" ? 0.5 : priorExp === "algunas" ? 0.2 : 0);
     const attempt = createAttempt({
       schoolId: school.id,
       grade: test.grade,
       division: school.divisions.length ? pick(school.divisions) : null,
       studentName: name,
-      age: test.grade === "4" ? (Math.random() < 0.8 ? 9 : 10) : Math.random() < 0.8 ? 11 : 12,
+      age: test.grade === "4" ? (Math.random() < 0.8 ? 9 : 10) : test.grade === "5" ? (Math.random() < 0.8 ? 10 : 11) : Math.random() < 0.8 ? 11 : 12,
       priorExp,
       gender: pick(["femenino", "masculino", "femenino", "masculino", "no_dice"]),
       device: DEMO_DEVICE,

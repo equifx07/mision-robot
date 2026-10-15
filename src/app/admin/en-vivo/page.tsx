@@ -26,7 +26,7 @@ export default async function LivePage() {
     <>
       <PageHeader
         title="En vivo"
-        subtitle="Las pruebas que se están haciendo ahora, de 4.º y de 6.º. Se actualiza sola cada 5 segundos. Si un chico cierra la pestaña, su prueba queda abierta: desde acá la podés terminar o descartar."
+        subtitle="Las pruebas que se están haciendo ahora, de 4.º, 5.º y 6.º. Se actualiza sola cada 5 segundos. Si un chico cierra la pestaña, su prueba queda abierta: desde acá la podés terminar o descartar."
       />
       <LiveBoard rows={rows} serverNow={Date.now()} />
     </>

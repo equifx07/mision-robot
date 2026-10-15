@@ -18,7 +18,7 @@ export default async function SchoolsPage() {
       <div>
         <h1 className="m-0 font-[family-name:var(--font-fredoka)] text-[34px] font-semibold">Colegios</h1>
         <p className="m-0 text-[17px] text-[#55504A]">
-          Los nombres que cargás acá son los que ven los chicos en el desplegable de la pantalla inicial. Cargalos antes de la toma. Cada chico elige si es de 4.º o de 6.º y, si el colegio tiene cursos, en cuál está.
+          Los nombres que cargás acá son los que ven los chicos en el desplegable de la pantalla inicial. Cargalos antes de la toma. Cada chico elige su grado (4.º, 5.º o 6.º) y, si el colegio tiene cursos, en cuál está.
         </p>
       </div>
 
@@ -48,7 +48,7 @@ export default async function SchoolsPage() {
               <input name="name" defaultValue={s.name} aria-label="Nombre del colegio" className={`${input} font-semibold`} />
               <div className="flex flex-wrap items-end gap-2">
                 <label className={`${small} flex-1`}>
-                  Cursos (los mismos para 4.º y 6.º)
+                  Cursos (los mismos para 4.º, 5.º y 6.º)
                   <input name="divisions" defaultValue={s.divisions.join(", ")} maxLength={60} placeholder="Sin cursos" className={`${input} mt-1 w-full`} />
                 </label>
                 <button type="submit" className="min-h-[40px] rounded-xl border border-[#D8D3C8] px-3 text-sm font-semibold text-[#3D3A35] hover:bg-[#EFEBE3]">
@@ -58,7 +58,7 @@ export default async function SchoolsPage() {
             </form>
             <p className="mt-2 text-xs text-[#6B665E]">
               {s.divisions.length ? `Los chicos eligen su curso: ${s.divisions.join(", ")}. ` : "Sin cursos: los chicos solo eligen el grado. "}
-              4.º: {counts[s.id]?.["4"] ?? 0} {(counts[s.id]?.["4"] ?? 0) === 1 ? "prueba" : "pruebas"} · 6.º: {counts[s.id]?.["6"] ?? 0} {(counts[s.id]?.["6"] ?? 0) === 1 ? "prueba" : "pruebas"}
+              {(["4", "5", "6"] as const).map((g) => `${g}.º: ${counts[s.id]?.[g] ?? 0} ${(counts[s.id]?.[g] ?? 0) === 1 ? "prueba" : "pruebas"}`).join(" · ")}
             </p>
             <form action={deleteSchoolAction} className="mt-4 border-t border-[#F0EDE6] pt-3">
               <input type="hidden" name="id" value={s.id} />

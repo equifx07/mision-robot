@@ -1,5 +1,5 @@
 // Operaciones sobre la base de datos (colegios, intentos, respuestas).
-// Hay dos pruebas (4.º y 6.º): cada intento guarda su grado y se corrige con las misiones de esa prueba.
+// Hay una prueba por grado (4.º, 5.º y 6.º): cada intento guarda su grado y se corrige con las misiones de esa prueba.
 // PAPELERA: desde el panel nunca se borra de verdad. Borrar marca deleted_at y esconde el colegio o la
 // prueba de todas las listas y estadísticas; se puede restaurar desde la papelera.
 import { randomUUID } from "node:crypto";
@@ -9,7 +9,7 @@ import { parseDivisions } from "./divisions";
 import { itemById } from "./items";
 import { testOf, type Grade } from "./tests";
 
-/** divisions: cursos del colegio (los mismos para 4.º y 6.º); vacío = sin cursos. */
+/** divisions: cursos del colegio (los mismos para 4.º, 5.º y 6.º); vacío = sin cursos. */
 export type School = { id: number; name: string; divisions: string[] };
 
 export type Attempt = {
@@ -95,7 +95,7 @@ export function restoreSchool(id: number): void {
   getDb().prepare("UPDATE schools SET deleted_at = NULL WHERE id = ?").run(id);
 }
 
-/** Pruebas activas por colegio y grado: { [schoolId]: { "4": n, "6": n } }. */
+/** Pruebas activas por colegio y grado: { [schoolId]: { "4": n, "5": n, "6": n } }. */
 export function countAttemptsBySchool(): Record<number, Record<string, number>> {
   const rows = getDb().prepare("SELECT school_id, grade, COUNT(*) AS n FROM attempts WHERE deleted_at IS NULL GROUP BY school_id, grade").all() as { school_id: number; grade: string; n: number }[];
   const out: Record<number, Record<string, number>> = {};

@@ -28,7 +28,7 @@ export default async function ExportPage() {
       <div>
         <h1 className="m-0 font-[family-name:var(--font-fredoka)] text-[34px] font-semibold">Exportar y copias de seguridad</h1>
         <p className="m-0 text-[17px] text-[#55504A]">
-          Archivos CSV separados por punto y coma, con coma decimal, listos para abrir en Excel o Google Sheets en español. Cada archivo es de una sola prueba, porque 4.º y 6.º tienen misiones distintas.
+          Archivos CSV separados por punto y coma, con coma decimal, listos para abrir en Excel o Google Sheets en español. Cada archivo es de un solo grado (4.º y 5.º hacen las mismas misiones, pero sus resultados van aparte).
         </p>
       </div>
       <section className="flex flex-col gap-3 rounded-[20px] border-2 border-[#22211F] bg-white p-5">

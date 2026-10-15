@@ -1,5 +1,5 @@
 // Estadísticas descriptivas y psicométricas para el panel. Todo se calcula para UNA prueba
-// (4.º o 6.º): sus misiones, su puntaje máximo y sus niveles. Nunca se mezclan las dos.
+// (4.º, 5.º o 6.º): sus misiones, su puntaje máximo y sus niveles. Nunca se mezclan las dos.
 import type { Item, ItemA } from "./model";
 import type { Answer, AttemptRow } from "./repo";
 import type { Level, TestDef } from "./tests";

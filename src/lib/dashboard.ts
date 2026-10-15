@@ -1,4 +1,4 @@
-// Carga y agrega los datos para el panel según filtros. Siempre de UNA prueba (4.º o 6.º), nunca de las dos.
+// Carga y agrega los datos para el panel según filtros. Siempre de UN grado (4.º, 5.º o 6.º), nunca mezclados.
 import { courseLabel } from "./divisions";
 import { listAllAnswers, listAttempts, listSchools, type School } from "./repo";
 import { cronbachAlpha, itemAnalysis, scoreAttempts, summarize, type GroupSummary, type ItemStats, type Scored } from "./stats";

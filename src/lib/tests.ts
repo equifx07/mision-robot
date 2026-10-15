@@ -1,21 +1,25 @@
-// Las dos pruebas: 4.º y 6.º grado. Cada una toma misiones del banco (items-a / items-b) en el orden
+// Las pruebas: 4.º, 5.º y 6.º grado. Cada una toma misiones del banco (items-a / items-b) en el orden
 // del banco. La selección la hizo el equipo misión por misión el 2026-10-07
-// (https://claude.ai/artifact/1ydhSLJ9hvmK8xas1tSuiy). A7.3 quedó fuera de las dos.
+// (https://claude.ai/artifact/1ydhSLJ9hvmK8xas1tSuiy). A7.3 quedó fuera de todas.
+// 5.º (agregado el 2026-10-15) hace las mismas misiones que 4.º, pero sus resultados se ven aparte.
 import { ITEMS } from "./items";
 import type { Item } from "./model";
 
-export type Grade = "4" | "6";
-export const GRADES: Grade[] = ["4", "6"];
-export const GRADE_LABEL: Record<Grade, string> = { "4": "4.º grado", "6": "6.º grado" };
-export const isGrade = (g: unknown): g is Grade => g === "4" || g === "6";
+export type Grade = "4" | "5" | "6";
+export const GRADES: Grade[] = ["4", "5", "6"];
+export const GRADE_LABEL: Record<Grade, string> = { "4": "4.º grado", "5": "5.º grado", "6": "6.º grado" };
+export const isGrade = (g: unknown): g is Grade => g === "4" || g === "5" || g === "6";
+
+const SELECTION_4 = ["A1.1", "A1.2", "A2.1", "A2.2", "A2.3", "A3.1", "A3.2", "A3.3", "A4.1", "A4.2", "A4.3", "A5.1", "A5.2", "A6.1", "A6.3", "A7.1", "B2", "B4", "B5", "B7", "B8"];
 
 const SELECTION: Record<Grade, string[]> = {
-  "4": ["A1.1", "A1.2", "A2.1", "A2.2", "A2.3", "A3.1", "A3.2", "A3.3", "A4.1", "A4.2", "A4.3", "A5.1", "A5.2", "A6.1", "A6.3", "A7.1", "B2", "B4", "B5", "B7", "B8"],
+  "4": SELECTION_4,
+  "5": SELECTION_4,
   "6": ["A2.1", "A2.2", "A2.3", "A3.1", "A3.2", "A3.3", "A4.1", "A4.2", "A4.3", "A5.1", "A5.2", "A5.3", "A6.1", "A6.2", "A6.3", "A7.1", "A7.2", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"],
 };
 
-/** Versión de cada prueba: se guarda en cada intento. v1.0 = primera versión con dos pruebas. */
-const VERSION: Record<Grade, string> = { "4": "epc4-v1.0", "6": "epc6-v1.0" };
+/** Versión de cada prueba: se guarda en cada intento. epc5-v1.0 tiene las mismas misiones que epc4-v1.0. */
+const VERSION: Record<Grade, string> = { "4": "epc4-v1.0", "5": "epc5-v1.0", "6": "epc6-v1.0" };
 
 export type Level = { key: string; name: string; min: number; max: number };
 
@@ -71,7 +75,7 @@ export function levelsText(test: TestDef): string {
   return `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;
 }
 
-export const TESTS: Record<Grade, TestDef> = { "4": build("4"), "6": build("6") };
+export const TESTS: Record<Grade, TestDef> = { "4": build("4"), "5": build("5"), "6": build("6") };
 
 export function testOf(grade: Grade | string | null | undefined): TestDef {
   return TESTS[isGrade(grade) ? grade : "6"];

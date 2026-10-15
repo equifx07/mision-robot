@@ -1,6 +1,6 @@
 "use client";
 
-// Menú lateral del panel. Arriba se elige qué prueba se mira (4.º o 6.º, nunca las dos juntas).
+// Menú lateral del panel. Arriba se elige qué prueba se mira (4.º, 5.º o 6.º, nunca juntas).
 // En las páginas de resultados conserva el grado y los filtros elegidos al cambiar de sección.
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -17,7 +17,7 @@ const RESULTS = [
 ];
 const MANAGE = [
   { href: "/admin/en-vivo", label: "En vivo" },
-  { href: "/explicacion", label: "Explicación (4.º)" },
+  { href: "/explicacion", label: "Explicación (4.º y 5.º)" },
   { href: "/admin/colegios", label: "Colegios" },
   { href: "/admin/exportar", label: "Exportar y copias" },
   { href: "/admin/papelera", label: "Papelera" },
@@ -27,7 +27,8 @@ const MANAGE = [
 export function AdminNav() {
   const path = usePathname();
   const params = useSearchParams();
-  const grade = params.get("grado") === "4" ? "4" : "6";
+  const g0 = params.get("grado");
+  const grade = g0 === "4" || g0 === "5" ? g0 : "6";
   const query = params.toString();
   // En pantallas chicas el menú se abre con un botón; se cierra solo al cambiar de página.
   const [open, setOpen] = useState(false);
@@ -49,7 +50,7 @@ export function AdminNav() {
     );
   };
   // Al cambiar de grado se mantiene la página; los filtros de colegio y experiencia se conservan.
-  const gradeHref = (g: "4" | "6") => {
+  const gradeHref = (g: "4" | "5" | "6") => {
     const p = new URLSearchParams(params.toString());
     p.set("grado", g);
     return `${resultsPage ? path : "/admin"}?${p.toString()}`;
@@ -59,17 +60,18 @@ export function AdminNav() {
     <>
       <div className="flex items-end gap-2 lg:flex-col lg:items-stretch lg:gap-1.5">
         <span className={`${section} hidden lg:block`}>PRUEBA</span>
-        <div className="grid flex-1 grid-cols-2 gap-1 rounded-2xl bg-[#EFEBE3] p-1" role="group" aria-label="Qué prueba mirar">
-          {(["4", "6"] as const).map((g) => {
+        <div className="grid flex-1 grid-cols-3 gap-1 rounded-2xl bg-[#EFEBE3] p-1" role="group" aria-label="Qué prueba mirar">
+          {(["4", "5", "6"] as const).map((g) => {
             const on = grade === g;
             return (
               <Link
                 key={g}
                 href={gradeHref(g)}
                 aria-current={on ? "true" : undefined}
+                aria-label={`${g}.º grado`}
                 className={`flex min-h-[42px] items-center justify-center rounded-xl text-[17px] font-bold no-underline [@media(max-height:760px)]:min-h-[36px] ${on ? "bg-white text-[#22211F] shadow-sm" : "text-[#55504A] hover:text-[#22211F]"}`}
               >
-                {g}.º grado
+                {g}.º
               </Link>
             );
           })}

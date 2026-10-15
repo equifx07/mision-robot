@@ -6,7 +6,7 @@ import { isGrade } from "@/lib/tests";
 export const dynamic = "force-dynamic";
 
 // Datos de demostración (marcados con dispositivo "demo").
-// POST { schoolId, grade: "4" | "6", count?, abilityShift? } genera pruebas; DELETE borra todas las de demo; GET cuenta.
+// POST { schoolId, grade: "4" | "5" | "6", count?, abilityShift? } genera pruebas; DELETE borra todas las de demo; GET cuenta.
 export async function POST(req: Request) {
   if (!(await isAdmin())) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   let body: { schoolId?: number; grade?: string; count?: number; abilityShift?: number };

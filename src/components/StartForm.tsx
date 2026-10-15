@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type School = { id: number; name: string; divisions: string[] };
-type Grade = "4" | "6";
+type Grade = "4" | "5" | "6";
 
 /** Edades que se ofrecen según el grado. */
-const AGES: Record<Grade, number[]> = { "4": [8, 9, 10, 11], "6": [10, 11, 12, 13, 14] };
+const AGES: Record<Grade, number[]> = { "4": [8, 9, 10, 11], "5": [9, 10, 11, 12], "6": [10, 11, 12, 13, 14] };
 
 export const ATTEMPT_KEY = "mr_attempt";
 
@@ -61,7 +61,7 @@ export function StartForm() {
     ev.preventDefault();
     setError(null);
     if (name.trim().length < 2) return setError("Escribí tu nombre y apellido.");
-    if (!grade) return setError("Elegí si sos de 4.º o de 6.º.");
+    if (!grade) return setError("Elegí tu grado.");
     if (schoolId === "") return setError("Elegí tu colegio.");
     if (divisions.length > 0 && !division) return setError("Elegí tu curso.");
     if (!priorExp) return setError("Contanos si tuviste clases de programación antes.");
@@ -130,8 +130,8 @@ export function StartForm() {
             </h2>
             <p className="mt-1 text-slate-600">Tocá tu grado para empezar.</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {(["4", "6"] as const).map((g) => (
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            {(["4", "5", "6"] as const).map((g) => (
               <button
                 key={g}
                 type="button"

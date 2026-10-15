@@ -13,7 +13,7 @@
 // La línea se arma con los datos del grupo que se está mirando (así un colegio que rinde menos en
 // general no ve todas sus misiones "fuera de la línea"). Los umbrales de apuro, los tiempos típicos y
 // el acierto de referencia se calculan con TODAS las pruebas, para que no cambien al filtrar por colegio.
-// Todo es de UNA prueba (4.º o 6.º): la referencia lleva su prueba y las funciones usan sus misiones.
+// Todo es de UNA prueba (4.º, 5.º o 6.º): la referencia lleva su prueba y las funciones usan sus misiones.
 import { listAllAnswers, listAttempts } from "./repo";
 import type { Tone } from "./semaforo";
 import { mean, median, quantile, scoreAttempts, type Scored } from "./stats";

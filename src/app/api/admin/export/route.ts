@@ -23,13 +23,13 @@ function respond(name: string, body: string) {
   });
 }
 
-// Exportación de UNA prueba: ?grado=4 o ?grado=6 (las dos pruebas tienen misiones distintas).
+// Exportación de UN grado: ?grado=4, ?grado=5 o ?grado=6.
 export async function GET(req: Request) {
   if (!(await isAdmin())) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const params = new URL(req.url).searchParams;
   const tipo = params.get("tipo") ?? "estudiantes";
   const grado = params.get("grado");
-  if (!isGrade(grado)) return NextResponse.json({ error: "Falta el grado (?grado=4 o ?grado=6)" }, { status: 400 });
+  if (!isGrade(grado)) return NextResponse.json({ error: "Falta el grado (?grado=4, 5 o 6)" }, { status: 400 });
   const test = testOf(grado);
   const attempts = listAttempts({ grade: test.grade });
   const answers = listAllAnswers(attempts.map((a) => a.id));
