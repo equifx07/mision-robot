@@ -461,7 +461,10 @@ type Props = {
   mapReserve?: number;
   /** La consigna queda fija arriba al bajar (debajo de la barra de la prueba, ver useBarHeight). */
   stickyPrompt?: boolean;
+  /** Explicación: alto disponible para las opciones (si no, se calcula para la prueba). */
+  optionsH?: number;
 };
+
 
 /**
  * Mide el alto de la barra superior de la prueba y lo deja en la variable CSS --bar-h,
@@ -521,14 +524,15 @@ function ReviewHeader({ item, index, total }: { item: Item; index: number; total
   );
 }
 
-function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords, mapReserve = MAP_RESERVE, stickyPrompt }: Props & { item: ItemA }) {
+function ItemAView({ item, index, total, selected, onSelect, order, review, showCoords, mapReserve = MAP_RESERVE, stickyPrompt, optionsH }: Props & { item: ItemA }) {
   const displayOrder = order ?? item.options.map((_, i) => i);
   const results = review ? item.options.map((o) => simulateOption(item, o)) : null;
   const picker = item.task === "C" && !!item.given;
   const fix = item.task === "D";
   // Dentro de la ventana de práctica hay menos alto: se descuenta lo que se reserva de más para el mapa.
-  const availH = OPTIONS_H - Math.max(0, mapReserve - MAP_RESERVE) - (picker ? PICKER_HEAD_H : 0);
-  const narrowSpace = mapReserve > MAP_RESERVE;
+  // optionsH (Explicación): alto real para las opciones, sin depender del lugar que se reserva para el mapa.
+  const availH = (optionsH ?? OPTIONS_H - Math.max(0, mapReserve - MAP_RESERVE)) - (picker ? PICKER_HEAD_H : 0);
+  const narrowSpace = optionsH === undefined && mapReserve > MAP_RESERVE;
   const labelTop = fix && optionColumns(item, availH, true, narrowSpace).cols === 1;
   const { cols, w } = optionColumns(item, availH, labelTop, narrowSpace);
   const gridCols = cols;
@@ -573,7 +577,7 @@ function ItemAView({ item, index, total, selected, onSelect, order, review, show
             <path d={link.head} fill="none" stroke="#F2B200" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
-        <div ref={boxRef} className={picker ? "shrink-0 rounded-2xl border-[3px] border-[#F5D06A] bg-[#FFFBEA] px-3 pb-3 pt-2.5 lg:ml-6" : "contents"}>
+        <div ref={boxRef} className={picker ? `shrink-0 rounded-2xl border-[3px] border-[#F5D06A] bg-[#FFFBEA] px-3 pb-3 pt-2.5 lg:ml-6` : "contents"}>
           {picker && (
             <div className="mb-3 text-[15px] font-bold leading-snug text-[#6B4F00]" style={{ width: 0, minWidth: "100%" }}>
               {pickerTitle}

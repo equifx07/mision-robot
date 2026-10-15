@@ -38,23 +38,24 @@ export function RobotRunner({ map, program, outcome, stepMs = 550, autoPlay, ton
   const totalMoves = result.steps.length - 1;
   const crashed = result.status === "crash";
   const finished = step >= totalMoves + (crashed ? 1 : 0);
+  // Aviso de que terminó, después de dibujar (no dentro de la actualización del paso).
+  useEffect(() => {
+    if (finished) onFinished?.();
+  }, [finished, onFinished]);
 
   useEffect(() => {
     if (!running) return;
     timer.current = window.setTimeout(() => {
       setStep((s) => {
         const next = s + 1;
-        if (next >= totalMoves + (crashed ? 1 : 0)) {
-          setRunning(false);
-          onFinished?.();
-        }
+        if (next >= totalMoves + (crashed ? 1 : 0)) setRunning(false);
         return next;
       });
     }, stepMs);
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
     };
-  }, [running, step, totalMoves, crashed, stepMs, onFinished]);
+  }, [running, step, totalMoves, crashed, stepMs]);
 
   const start = () => {
     setStep(0);

@@ -17,6 +17,7 @@ const RESULTS = [
 ];
 const MANAGE = [
   { href: "/admin/en-vivo", label: "En vivo" },
+  { href: "/explicacion", label: "Explicación (4.º)" },
   { href: "/admin/colegios", label: "Colegios" },
   { href: "/admin/exportar", label: "Exportar y copias" },
   { href: "/admin/papelera", label: "Papelera" },
